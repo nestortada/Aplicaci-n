@@ -23,5 +23,36 @@ export async function copyRichText({ text, html }: ClipboardPayload): Promise<vo
     }
   }
 
+  if (html && copyHtmlWithSelectionFallback(html)) {
+    return;
+  }
+
   await clipboard.writeText(text);
+}
+
+function copyHtmlWithSelectionFallback(html: string): boolean {
+  const selection = window.getSelection();
+  if (!selection) {
+    return false;
+  }
+
+  const container = document.createElement("div");
+  container.contentEditable = "true";
+  container.style.position = "fixed";
+  container.style.left = "-9999px";
+  container.style.top = "0";
+  container.innerHTML = html;
+  document.body.appendChild(container);
+
+  const range = document.createRange();
+  range.selectNodeContents(container);
+  selection.removeAllRanges();
+  selection.addRange(range);
+
+  try {
+    return document.execCommand("copy");
+  } finally {
+    selection.removeAllRanges();
+    container.remove();
+  }
 }

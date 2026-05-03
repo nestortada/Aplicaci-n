@@ -46,24 +46,55 @@ export function buildMessageText(report: ReportResponse): string {
 }
 
 export function buildTableHtml(rows: ReportTableRow[]): string {
+  const tableStyle = [
+    "border-collapse:collapse",
+    "border-spacing:0",
+    "width:100%",
+    "font-family:Arial,Helvetica,sans-serif",
+    "font-size:12px",
+    "color:#0f172a",
+  ].join(";");
+  const headerStyle = [
+    "border:1px solid #94a3b8",
+    "background-color:#f1f5f9",
+    "color:#334155",
+    "font-weight:700",
+    "text-transform:uppercase",
+    "letter-spacing:0",
+    "padding:8px 10px",
+    "text-align:left",
+    "vertical-align:middle",
+  ].join(";");
+  const cellStyle = [
+    "border:1px solid #cbd5e1",
+    "padding:8px 10px",
+    "text-align:left",
+    "vertical-align:top",
+    "background-color:#ffffff",
+  ].join(";");
+  const numberCellStyle = `${cellStyle};text-align:right`;
   const header = ["SEMESTRE", "MATERIA", "SESIONES", "DEPARTAMENTO"]
-    .map((column) => `<th>${escapeHtml(column)}</th>`)
+    .map((column) => `<th style="${headerStyle}" scope="col">${escapeHtml(column)}</th>`)
     .join("");
   const body = rows
     .map(
       (row) =>
-        `<tr><td>${escapeHtml(row.semestre)}</td><td>${escapeHtml(row.materia)}</td><td>${escapeHtml(
+        `<tr><td style="${cellStyle}">${escapeHtml(row.semestre)}</td><td style="${cellStyle}">${escapeHtml(
+          row.materia,
+        )}</td><td style="${numberCellStyle}">${escapeHtml(
           String(row.sesiones),
-        )}</td><td>${escapeHtml(row.departamento)}</td></tr>`,
+        )}</td><td style="${cellStyle}">${escapeHtml(row.departamento)}</td></tr>`,
     )
     .join("");
-  return `<table><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table>`;
+  return `<table border="1" cellpadding="0" cellspacing="0" style="${tableStyle}"><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table>`;
 }
 
 export function buildMessageHtml(report: ReportResponse): string {
-  return `<p>Buen día, cordial saludo,</p><p>Apreciad@s, envío la información encontrada del profesor <strong>${escapeHtml(
+  const wrapperStyle = "font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#0f172a;line-height:1.5";
+  const paragraphStyle = "margin:0 0 12px 0";
+  return `<div style="${wrapperStyle}"><p style="${paragraphStyle}">Buen día, cordial saludo,</p><p style="${paragraphStyle}">Apreciad@s, envío la información encontrada del profesor <strong>${escapeHtml(
     report.profesor,
-  )}</strong>.</p>${buildTableHtml(report.tabla)}`;
+  )}</strong>.</p>${buildTableHtml(report.tabla)}</div>`;
 }
 
 function escapeHtml(value: string): string {

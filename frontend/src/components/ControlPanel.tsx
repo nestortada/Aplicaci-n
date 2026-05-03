@@ -94,7 +94,9 @@ export function ControlPanel({
           </label>
           <div className="identification-row">
             <select
-              className="field-control identification-type"
+              className={`field-control identification-type ${
+                identificationType === "document" ? "identification-type--document" : ""
+              }`}
               aria-label="Tipo de identificación"
               value={identificationType}
               onChange={(event) => onIdentificationTypeChange(event.target.value as IdentificationType)}

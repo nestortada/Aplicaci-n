@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { CertificatePreview } from "./components/CertificatePreview";
 import { ControlPanel } from "./components/ControlPanel";
 import {
@@ -43,6 +43,12 @@ export default function App() {
   const [result, setResult] = useState<ReportResponse | null>(null);
   const [formError, setFormError] = useState("");
   const [toast, setToast] = useState("");
+  const [controlPanelWidth, setControlPanelWidth] = useState(() => {
+    const savedWidth = Number(window.localStorage.getItem("sabana-control-panel-width"));
+    return Number.isFinite(savedWidth) && savedWidth >= 26 && savedWidth <= 55 ? savedWidth : 33;
+  });
+  const [isResizing, setIsResizing] = useState(false);
+  const gridRef = useRef<HTMLDivElement>(null);
 
   const activeDatabase = Boolean(database?.activa);
   const ciclosInicio = useMemo(() => [EMPTY_CYCLE_OPTION, ...ciclos], [ciclos]);
@@ -108,6 +114,40 @@ export default function App() {
       setCicloFin("");
     }
   }, [cicloFin, cicloInicio]);
+
+  useEffect(() => {
+    if (!isResizing) {
+      return;
+    }
+
+    function handlePointerMove(event: PointerEvent) {
+      const grid = gridRef.current;
+      if (!grid) {
+        return;
+      }
+      const rect = grid.getBoundingClientRect();
+      const nextWidth = ((event.clientX - rect.left) / rect.width) * 100;
+      setControlPanelWidth(clamp(nextWidth, 26, 55));
+    }
+
+    function handlePointerUp() {
+      setIsResizing(false);
+    }
+
+    document.body.classList.add("is-resizing-panels");
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+
+    return () => {
+      document.body.classList.remove("is-resizing-panels");
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [isResizing]);
+
+  useEffect(() => {
+    window.localStorage.setItem("sabana-control-panel-width", String(Math.round(controlPanelWidth * 10) / 10));
+  }, [controlPanelWidth]);
 
   useEffect(() => {
     if (!activeDatabase || !identification.trim()) {
@@ -314,7 +354,11 @@ export default function App() {
       </header>
 
       <main className="app-main">
-        <div className="app-grid">
+        <div
+          ref={gridRef}
+          className={`app-grid ${isResizing ? "app-grid--resizing" : ""}`}
+          style={{ "--control-panel-width": `${controlPanelWidth}%` } as CSSProperties}
+        >
           <ControlPanel
             database={database}
             uploadStatus={uploadStatus}
@@ -345,6 +389,25 @@ export default function App() {
             onClearAll={handleClearAll}
           />
 
+          <button
+            className="panel-resizer"
+            type="button"
+            aria-label="Ajustar ancho de paneles"
+            aria-orientation="vertical"
+            aria-valuemin={26}
+            aria-valuemax={55}
+            aria-valuenow={Math.round(controlPanelWidth)}
+            role="separator"
+            onPointerDown={(event) => {
+              event.preventDefault();
+              setIsResizing(true);
+            }}
+            onDoubleClick={() => setControlPanelWidth(33)}
+            title="Arrastra para ajustar los paneles. Doble click para restaurar."
+          >
+            <span aria-hidden="true" />
+          </button>
+
           <CertificatePreview
             result={result}
             isLoading={isSearching}
@@ -368,4 +431,8 @@ function withTodos(options: FilterOption[]): FilterOption[] {
 
 function hasOption(options: FilterOption[], value: string): boolean {
   return options.some((option) => option.valor === value);
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
 }
