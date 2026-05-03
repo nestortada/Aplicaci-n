@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 import { CertificatePreview } from "./components/CertificatePreview";
 import { ControlPanel } from "./components/ControlPanel";
 import {
@@ -24,6 +24,7 @@ import {
 const ALL_OPTION: FilterOption = { valor: "TODOS", etiqueta: "Todos" };
 const EMPTY_CYCLE_OPTION: FilterOption = { valor: "", etiqueta: "Todos los periodos" };
 const EMPTY_DATABASE: DatasetMetadata = { activa: false, archivo: "", fechaCarga: "", filasCargadas: 0 };
+const INSTALLER_URL = import.meta.env.VITE_INSTALLER_URL || "/downloads/SabanaCertificado.exe";
 
 export default function App() {
   const [database, setDatabase] = useState<DatasetMetadata | null>(null);
@@ -347,10 +348,45 @@ export default function App() {
     window.setTimeout(() => setToast(""), 2200);
   }
 
+  async function handleInstallerDownload(event: MouseEvent<HTMLAnchorElement>) {
+    event.preventDefault();
+
+    const download = () => {
+      const link = document.createElement("a");
+      link.href = INSTALLER_URL;
+      link.download = "SabanaCertificado.exe";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    };
+
+    try {
+      const response = await fetch(INSTALLER_URL, { method: "HEAD", cache: "no-store" });
+      if (response.ok) {
+        download();
+        return;
+      }
+    } catch {
+      // If the installer is hosted elsewhere and HEAD is blocked, let the browser try the download.
+      if (new URL(INSTALLER_URL, window.location.href).origin !== window.location.origin) {
+        download();
+        return;
+      }
+    }
+
+    showToast("El instalador aún no está disponible. Genera el .exe primero.");
+  }
+
   return (
     <div className="app-shell">
       <header className="app-header">
         <h1>Sabana Certificado</h1>
+        <a className="installer-download" href={INSTALLER_URL} download="SabanaCertificado.exe" onClick={handleInstallerDownload}>
+          <span className="material-symbols-outlined" aria-hidden="true">
+            download
+          </span>
+          Descargar .exe
+        </a>
       </header>
 
       <main className="app-main">

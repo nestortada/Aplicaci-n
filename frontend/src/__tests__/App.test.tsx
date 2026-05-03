@@ -71,6 +71,15 @@ describe("Sabana Certificado frontend", () => {
     Object.defineProperty(window, "confirm", { value: vi.fn(() => true), configurable: true });
   });
 
+  it("shows the installer download link in the header", () => {
+    render(<App />);
+
+    const downloadLink = screen.getByRole("link", { name: /descargar \.exe/i });
+
+    expect(downloadLink).toHaveAttribute("href", "/downloads/SabanaCertificado.exe");
+    expect(downloadLink).toHaveAttribute("download", "SabanaCertificado.exe");
+  });
+
   it("uploads a valid file from the input and rejects invalid extensions", async () => {
     render(<App />);
 

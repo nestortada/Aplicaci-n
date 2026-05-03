@@ -14,8 +14,8 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "react-jsx",
-    "types": ["vitest/globals", "@testing-library/jest-dom"]
+    "jsx": "react-jsx"
   },
-  "include": ["src", "vite.config.ts", "vitest.setup.ts"]
+  "include": ["src", "vite.config.ts"],
+  "exclude": ["src/__tests__/**", "vitest.setup.ts"]
 }

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -p tsconfig.json && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -16,6 +16,8 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
     "@testing-library/jest-dom": "^6.6.0",
     "@testing-library/react": "^16.1.0",
     "@testing-library/user-event": "^14.5.0",

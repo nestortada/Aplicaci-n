@@ -80,13 +80,15 @@ button:disabled {
 
 .app-header {
   flex: 0 0 auto;
-  display: flex;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: minmax(132px, 1fr) auto minmax(132px, 1fr);
   align-items: center;
+  gap: 16px;
   padding: 14px 20px 6px;
 }
 
 .app-header h1 {
+  grid-column: 2;
   margin: 0;
   font-family: "Public Sans", Inter, sans-serif;
   font-size: 22px;
@@ -94,6 +96,45 @@ button:disabled {
   font-weight: 700;
   letter-spacing: 0;
   color: var(--primary);
+}
+
+.installer-download {
+  grid-column: 3;
+  justify-self: end;
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 12px;
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  background: var(--success);
+  border-radius: var(--radius-control);
+  box-shadow: 0 8px 18px rgba(5, 150, 105, 0.18);
+  transition:
+    background-color var(--transition),
+    transform var(--transition),
+    box-shadow var(--transition);
+}
+
+.installer-download:hover,
+.installer-download:focus-visible {
+  background: #047857;
+  box-shadow: 0 12px 24px rgba(5, 150, 105, 0.22);
+  transform: translateY(-1px);
+}
+
+.installer-download:focus-visible {
+  outline: 3px solid rgba(5, 150, 105, 0.24);
+  outline-offset: 2px;
+}
+
+.installer-download .material-symbols-outlined {
+  font-size: 18px;
 }
 
 .app-main {
@@ -888,11 +929,22 @@ button:disabled {
 
 @media (max-width: 640px) {
   .app-header {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
     padding: 20px 14px 10px;
+  }
+
+  .app-header h1,
+  .installer-download {
+    grid-column: 1;
   }
 
   .app-header h1 {
     font-size: 23px;
+  }
+
+  .installer-download {
+    width: min(100%, 220px);
   }
 
   .app-main {

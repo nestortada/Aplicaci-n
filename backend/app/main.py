@@ -8,11 +8,13 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.config import get_allowed_origins, get_database_path
+from app.config import get_allowed_origins, get_database_path, get_frontend_dist_path, get_server_host, get_server_port
 from app.exceptions import (
     AppError,
     app_error_handler,
@@ -216,7 +218,30 @@ def create_app(repository: DatasetRepository | None = None) -> FastAPI:
                 },
             ) from exc
 
+    _mount_frontend(api)
+
     return api
+
+
+def _mount_frontend(api: FastAPI) -> None:
+    frontend_dist_path = get_frontend_dist_path()
+    index_path = frontend_dist_path / "index.html"
+    assets_path = frontend_dist_path / "assets"
+
+    if not index_path.exists():
+        return
+
+    if assets_path.exists():
+        api.mount("/assets", StaticFiles(directory=assets_path), name="assets")
+
+    @api.api_route("/{full_path:path}", methods=["GET", "HEAD"], include_in_schema=False)
+    async def serve_frontend(full_path: str) -> FileResponse:
+        requested_path = (frontend_dist_path / full_path).resolve()
+        if full_path and requested_path.is_file() and frontend_dist_path.resolve() in requested_path.parents:
+            return FileResponse(requested_path)
+        if full_path.startswith("downloads/"):
+            raise HTTPException(status_code=404, detail="Archivo no encontrado.")
+        return FileResponse(index_path)
 
 
 async def get_repository(request: Request) -> DatasetRepository:
@@ -257,4 +282,4 @@ app = create_app()
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("app.main:app", host="127.0.0.1", port=8000)
+    uvicorn.run("app.main:app", host=get_server_host(), port=get_server_port())

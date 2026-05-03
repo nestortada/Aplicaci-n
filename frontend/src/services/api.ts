@@ -7,7 +7,8 @@ import type {
   UploadResponse,
 } from "../types";
 
-const API_URL = (import.meta.env.VITE_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
+const defaultApiUrl = window.location.port === "5173" ? "http://127.0.0.1:8000" : window.location.origin;
+const API_URL = (import.meta.env.VITE_API_URL || defaultApiUrl).replace(/\/$/, "");
 
 export async function uploadDatabase(file: File): Promise<UploadResponse> {
   const formData = new FormData();
