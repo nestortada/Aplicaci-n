@@ -122,6 +122,100 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(payload["archivo"], "datos.xlsx")
         self.assertEqual(payload["filasCargadas"], 1)
 
+    def test_delete_upload_clears_active_dataset(self) -> None:
+        self.upload_valid_dataset()
+
+        response = self.request("DELETE", "/api/uploads")
+
+        self.assertEqual(response.status_code, 200, response.text)
+        payload = response.json()
+        self.assertFalse(payload["activa"])
+        self.assertEqual(payload["archivo"], "")
+        self.assertEqual(payload["filasCargadas"], 0)
+
+        response = self.request("GET", "/api/uploads/estado")
+        self.assertFalse(response.json()["activa"])
+
+    def test_filter_cycles_returns_unique_sorted_options(self) -> None:
+        self.upload_valid_dataset(
+            [
+                valid_row(**{"Ciclo Lectivo": "PERIODO 2017-2"}),
+                valid_row(**{"Ciclo Lectivo": "PERIODO 2016-2"}),
+                valid_row(**{"Ciclo Lectivo": "PERIODO 2017-1"}),
+                valid_row(**{"Ciclo Lectivo": "PERIODO 2017-1"}),
+            ]
+        )
+
+        response = self.request("GET", "/api/filtros/ciclos")
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(
+            response.json()["opciones"],
+            [
+                {"valor": "PERIODO 2016-2", "etiqueta": "2016-II"},
+                {"valor": "PERIODO 2017-1", "etiqueta": "2017-I"},
+                {"valor": "PERIODO 2017-2", "etiqueta": "2017-II"},
+            ],
+        )
+
+    def test_filter_courses_respects_professor_and_cycle_range(self) -> None:
+        self.upload_valid_dataset(
+            [
+                valid_row(**{"Ciclo Lectivo": "PERIODO 2016-2", "Nombre del curso": "CURSO ANTIGUO"}),
+                valid_row(**{"Ciclo Lectivo": "PERIODO 2017-1", "Nombre del curso": "CURSO ACTUAL"}),
+                valid_row(
+                    **{
+                        "Ciclo Lectivo": "PERIODO 2017-1",
+                        "Nombre del curso": "CURSO OTRO PROFESOR",
+                        "Id profesor": "0000009999",
+                        "Numero documento docente": "999",
+                    }
+                ),
+            ]
+        )
+
+        response = self.request(
+            "GET",
+            "/api/filtros/materias",
+            params={
+                "numeroDocumentoDocente": "52867332",
+                "cicloLectivoInicio": "PERIODO 2017-1",
+                "cicloLectivoFinal": "PERIODO 2017-1",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["opciones"], [{"valor": "CURSO ACTUAL", "etiqueta": "CURSO ACTUAL"}])
+
+    def test_filter_components_respects_professor_cycle_and_course(self) -> None:
+        self.upload_valid_dataset(
+            [
+                valid_row(**{"Ciclo Lectivo": "PERIODO 2017-1", "Nombre del curso": "CURSO ACTUAL", "Componente": "LAB"}),
+                valid_row(**{"Ciclo Lectivo": "PERIODO 2017-1", "Nombre del curso": "CURSO ACTUAL", "Componente": "LEC"}),
+                valid_row(**{"Ciclo Lectivo": "PERIODO 2017-1", "Nombre del curso": "CURSO DISTINTO", "Componente": "TEO"}),
+            ]
+        )
+
+        response = self.request(
+            "GET",
+            "/api/filtros/componentes",
+            params={
+                "idProfesor": "0000005357",
+                "cicloLectivoInicio": "PERIODO 2017-1",
+                "cicloLectivoFinal": "PERIODO 2017-1",
+                "nombreCurso": "CURSO ACTUAL",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(
+            response.json()["opciones"],
+            [
+                {"valor": "LAB", "etiqueta": "LAB"},
+                {"valor": "LEC", "etiqueta": "LEC"},
+            ],
+        )
+
     def test_upload_missing_columns_returns_422(self) -> None:
         content = xlsx_bytes(["Ciclo Lectivo", "Nombre del curso"], [["PERIODO 2016-2", "CURSO"]])
 

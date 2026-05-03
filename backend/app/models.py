@@ -14,6 +14,15 @@ class DatasetMetadata(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
+class FilterOption(BaseModel):
+    valor: str
+    etiqueta: str
+
+
+class FilterOptionsResponse(BaseModel):
+    opciones: list[FilterOption]
+
+
 class ReportRequest(BaseModel):
     numero_documento_docente: str = Field(default="", alias="numeroDocumentoDocente")
     id_profesor: str = Field(default="", alias="idProfesor")

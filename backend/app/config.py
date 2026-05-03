@@ -13,6 +13,12 @@ def get_database_path() -> Path:
     return Path(raw_path)
 
 
+def get_allowed_origins() -> list[str]:
+    load_key_value_env_file()
+    raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
+    return [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
+
+
 def load_key_value_env_file() -> None:
     text = _read_env_file()
     if not text:
