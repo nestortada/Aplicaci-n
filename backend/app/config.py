@@ -7,6 +7,7 @@ from pathlib import Path
 
 DEFAULT_ENV_FILE = ".env"
 DEFAULT_DEV_DATABASE_PATH = Path("data/reportes.sqlite3")
+DEFAULT_VERCEL_DATABASE_PATH = Path("/tmp/reportes.sqlite3")
 DEFAULT_APP_NAME = "SabanaCertificado"
 
 
@@ -14,11 +15,17 @@ def is_frozen_app() -> bool:
     return bool(getattr(sys, "frozen", False))
 
 
+def is_vercel_environment() -> bool:
+    return os.getenv("VERCEL") == "1"
+
+
 def get_database_path() -> Path:
     load_key_value_env_file()
     raw_path = os.getenv("DATABASE_PATH")
     if raw_path:
         return Path(raw_path)
+    if is_vercel_environment():
+        return DEFAULT_VERCEL_DATABASE_PATH
     if is_frozen_app():
         return _default_windows_data_dir() / "reportes.sqlite3"
     return DEFAULT_DEV_DATABASE_PATH
