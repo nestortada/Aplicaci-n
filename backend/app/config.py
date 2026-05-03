@@ -8,6 +8,13 @@ from pathlib import Path
 DEFAULT_ENV_FILE = ".env"
 DEFAULT_DEV_DATABASE_PATH = Path("data/reportes.sqlite3")
 DEFAULT_VERCEL_DATABASE_PATH = Path("/tmp/reportes.sqlite3")
+DEFAULT_ALLOWED_ORIGINS = ",".join(
+    [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "https://frontend-certisabana.vercel.app",
+    ]
+)
 DEFAULT_APP_NAME = "SabanaCertificado"
 
 
@@ -20,12 +27,14 @@ def is_vercel_environment() -> bool:
 
 
 def get_database_path() -> Path:
+    if is_vercel_environment():
+        raw_path = os.getenv("DATABASE_PATH")
+        return Path(raw_path) if raw_path else DEFAULT_VERCEL_DATABASE_PATH
+
     load_key_value_env_file()
     raw_path = os.getenv("DATABASE_PATH")
     if raw_path:
         return Path(raw_path)
-    if is_vercel_environment():
-        return DEFAULT_VERCEL_DATABASE_PATH
     if is_frozen_app():
         return _default_windows_data_dir() / "reportes.sqlite3"
     return DEFAULT_DEV_DATABASE_PATH
@@ -68,7 +77,7 @@ def _resource_path(*parts: str) -> Path:
 
 def get_allowed_origins() -> list[str]:
     load_key_value_env_file()
-    raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
+    raw_origins = os.getenv("ALLOWED_ORIGINS", DEFAULT_ALLOWED_ORIGINS)
     return [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
 
 
