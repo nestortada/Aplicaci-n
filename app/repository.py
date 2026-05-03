@@ -107,6 +107,26 @@ class DatasetRepository:
             row = connection.execute("SELECT COUNT(*) AS count FROM upload_metadata").fetchone()
             return bool(row and row["count"])
 
+    def get_upload_metadata(self) -> dict[str, Any]:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT filename, uploaded_at, row_count
+                FROM upload_metadata
+                WHERE id = 1
+                """
+            ).fetchone()
+
+        if not row:
+            return {"activa": False, "archivo": "", "fechaCarga": "", "filasCargadas": 0}
+
+        return {
+            "activa": True,
+            "archivo": row["filename"],
+            "fechaCarga": row["uploaded_at"],
+            "filasCargadas": row["row_count"],
+        }
+
     def get_rows(self) -> list[dict[str, Any]]:
         with self._connect() as connection:
             rows = connection.execute(

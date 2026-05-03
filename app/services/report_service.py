@@ -28,32 +28,76 @@ class ReportService:
         ciclo_lectivo_final = clean_filter(request.ciclo_lectivo_final)
         nombre_curso = clean_filter(request.nombre_curso) or "TODOS"
         componente = clean_filter(request.componente) or "TODOS"
+        received_filters = {
+            "numeroDocumentoDocente": document,
+            "idProfesor": professor_id,
+            "cicloLectivo": ciclo_lectivo,
+            "cicloLectivoInicio": ciclo_lectivo_inicio,
+            "cicloLectivoFinal": ciclo_lectivo_final,
+            "nombreCurso": nombre_curso,
+            "componente": componente,
+            "visualizarComponente": request.visualizar_componente,
+        }
+        database_metadata = self.repository.get_upload_metadata()
 
         if not document and not professor_id:
             raise AppError(
                 400,
                 "profesor_requerido",
                 "Debe enviar Numero documento docente o Id profesor.",
+                {
+                    "parametrosRecibidos": received_filters,
+                    "baseDatos": database_metadata,
+                    "sugerencia": "Complete al menos uno de los identificadores del profesor.",
+                },
             )
         if ciclo_lectivo_inicio and parse_cycle_key(ciclo_lectivo_inicio) is None:
             raise AppError(
                 422,
                 "ciclo_inicio_invalido",
                 "Ciclo Lectivo Inicio debe tener un formato como PERIODO 2016-2.",
+                {
+                    "parametrosRecibidos": received_filters,
+                    "baseDatos": database_metadata,
+                    "sugerencia": "Use el formato PERIODO AAAA-N, por ejemplo PERIODO 2017-1.",
+                },
             )
         if ciclo_lectivo_final and parse_cycle_key(ciclo_lectivo_final) is None:
             raise AppError(
                 422,
                 "ciclo_final_invalido",
                 "Ciclo Lectivo Final debe tener un formato como PERIODO 2016-2.",
+                {
+                    "parametrosRecibidos": received_filters,
+                    "baseDatos": database_metadata,
+                    "sugerencia": "Use el formato PERIODO AAAA-N, por ejemplo PERIODO 2017-2.",
+                },
             )
         if not self.repository.has_active_dataset():
-            raise AppError(409, "base_no_cargada", "No hay una base activa cargada.")
+            raise AppError(
+                409,
+                "base_no_cargada",
+                "No hay una base activa cargada.",
+                {
+                    "parametrosRecibidos": received_filters,
+                    "baseDatos": database_metadata,
+                    "sugerencia": "Cargue primero un archivo en /api/uploads.",
+                },
+            )
 
         all_rows = self.repository.get_rows()
         professor_rows = filter_by_professor(all_rows, document, professor_id)
         if not professor_rows:
-            raise AppError(404, "profesor_no_encontrado", "Profesor no encontrado.")
+            raise AppError(
+                404,
+                "profesor_no_encontrado",
+                "Profesor no encontrado.",
+                {
+                    "parametrosRecibidos": received_filters,
+                    "baseDatos": database_metadata,
+                    "sugerencia": "Revise el numero de documento o el Id profesor contra la base cargada.",
+                },
+            )
 
         professor_name = first_valid_professor_name(professor_rows)
         cycle_rows = filter_by_cycle_selection(
@@ -67,6 +111,11 @@ class ReportService:
                 404,
                 "ciclo_no_encontrado",
                 "No se encontraron ciclos lectivos para ese profesor con los filtros enviados.",
+                {
+                    "parametrosRecibidos": received_filters,
+                    "baseDatos": database_metadata,
+                    "sugerencia": "Revise el ciclo exacto o el rango de ciclos enviados.",
+                },
             )
 
         filtered_rows = apply_optional_filters(cycle_rows, nombre_curso, componente)
@@ -75,16 +124,41 @@ class ReportService:
                 404,
                 "reporte_sin_datos",
                 "No hay datos despues de aplicar los filtros.",
+                {
+                    "parametrosRecibidos": received_filters,
+                    "baseDatos": database_metadata,
+                    "sugerencia": "Pruebe con nombreCurso='TODOS' o componente='TODOS'.",
+                },
             )
 
         deduplicated_rows = deduplicate_combined_sections(filtered_rows)
-        rows_with_hours = attach_session_hours(deduplicated_rows)
+        try:
+            rows_with_hours = attach_session_hours(deduplicated_rows)
+        except AppError as exc:
+            if exc.code != "horas_invalidas":
+                raise
+            raise AppError(
+                exc.status_code,
+                exc.code,
+                exc.message,
+                {
+                    **(exc.details or {}),
+                    "parametrosRecibidos": received_filters,
+                    "baseDatos": database_metadata,
+                    "sugerencia": "Corrija las filas indicadas en la base y vuelva a cargar el archivo.",
+                },
+            ) from exc
         table_rows = group_report_rows(rows_with_hours, request.visualizar_componente)
         if not table_rows:
             raise AppError(
                 404,
                 "reporte_sin_datos",
                 "No hay datos despues de aplicar los filtros.",
+                {
+                    "parametrosRecibidos": received_filters,
+                    "baseDatos": database_metadata,
+                    "sugerencia": "Pruebe con filtros mas amplios.",
+                },
             )
 
         filters = AppliedFilters(
@@ -102,4 +176,5 @@ class ReportService:
             filtrosAplicados=filters,
             tabla=table_rows,
             mensaje=build_message(professor_name, table_rows),
+            baseDatos=database_metadata,
         )

@@ -102,7 +102,25 @@ class ApiTest(unittest.TestCase):
         payload = response.json()
         self.assertEqual(payload["archivo"], "datos.xlsx")
         self.assertEqual(payload["filasCargadas"], 1)
+        self.assertTrue(payload["baseDatos"]["activa"])
+        self.assertEqual(payload["baseDatos"]["archivo"], "datos.xlsx")
         self.assertIn("Ciclo Lectivo", payload["columnasDetectadas"])
+
+    def test_upload_status_reports_active_dataset(self) -> None:
+        response = self.request("GET", "/api/uploads/estado")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()["activa"])
+
+        self.upload_valid_dataset()
+
+        response = self.request("GET", "/api/uploads/estado")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["activa"])
+        self.assertEqual(payload["archivo"], "datos.xlsx")
+        self.assertEqual(payload["filasCargadas"], 1)
 
     def test_upload_missing_columns_returns_422(self) -> None:
         content = xlsx_bytes(["Ciclo Lectivo", "Nombre del curso"], [["PERIODO 2016-2", "CURSO"]])
@@ -127,6 +145,7 @@ class ApiTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["detail"]["code"], "archivo_no_enviado")
+        self.assertIn("contexto", response.json()["detail"])
 
     def test_query_valid_report(self) -> None:
         self.upload_valid_dataset()
@@ -213,6 +232,26 @@ class ApiTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["detail"]["code"], "profesor_requerido")
+        self.assertIn("parametrosRecibidos", response.json()["detail"])
+        self.assertIn("baseDatos", response.json()["detail"])
+
+    def test_query_with_unknown_parameter_returns_contextual_422(self) -> None:
+        response = self.request(
+            "POST",
+            "/api/reportes/sesiones-profesor",
+            json={
+                "numeroDocumentoDocente": "52867332",
+                "idProfesor": "",
+                "cicloLectivo": "PERIODO 2016-2",
+                "parametroInventado": "valor",
+            },
+        )
+
+        self.assertEqual(response.status_code, 422)
+        payload = response.json()["detail"]
+        self.assertEqual(payload["code"], "parametros_invalidos")
+        self.assertIn("contexto", payload)
+        self.assertEqual(payload["errores"][0]["campo"], "parametroInventado")
 
     def test_query_with_invalid_time_returns_422(self) -> None:
         self.upload_valid_dataset([valid_row(**{"Hora Inicio": "hora mala"})])
@@ -225,6 +264,7 @@ class ApiTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 422)
         self.assertEqual(response.json()["detail"]["code"], "horas_invalidas")
+        self.assertIn("parametrosRecibidos", response.json()["detail"])
 
 
 if __name__ == "__main__":

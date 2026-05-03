@@ -24,12 +24,20 @@ async def extract_uploaded_file(request: Request) -> UploadedFileData:
     if not body:
         raise AppError(400, "archivo_no_enviado", "No se envio ningun archivo.")
 
-    message = BytesParser(policy=default).parsebytes(
-        b"Content-Type: "
-        + content_type.encode("utf-8")
-        + b"\r\nMIME-Version: 1.0\r\n\r\n"
-        + body
-    )
+    try:
+        message = BytesParser(policy=default).parsebytes(
+            b"Content-Type: "
+            + content_type.encode("utf-8")
+            + b"\r\nMIME-Version: 1.0\r\n\r\n"
+            + body
+        )
+    except Exception as exc:
+        raise AppError(
+            400,
+            "multipart_invalido",
+            "No fue posible interpretar el archivo enviado.",
+            {"sugerencia": "Envie el archivo como multipart/form-data en el campo 'file'."},
+        ) from exc
 
     if not message.is_multipart():
         raise AppError(400, "archivo_no_enviado", "No se encontro una parte de archivo en la solicitud.")
@@ -40,7 +48,7 @@ async def extract_uploaded_file(request: Request) -> UploadedFileData:
         filename = part.get_filename()
         if disposition == "form-data" and field_name == "file" and filename:
             payload = part.get_payload(decode=True) or b""
-            return UploadedFileData(filename=filename, content=payload)
+            safe_filename = filename.replace("\\", "/").rsplit("/", 1)[-1]
+            return UploadedFileData(filename=safe_filename, content=payload)
 
     raise AppError(400, "archivo_no_enviado", "Debe enviar un archivo en el campo 'file'.")
-

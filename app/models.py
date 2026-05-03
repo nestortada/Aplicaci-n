@@ -5,6 +5,15 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
+class DatasetMetadata(BaseModel):
+    activa: bool
+    archivo: str = ""
+    fecha_carga: str = Field(default="", alias="fechaCarga")
+    filas_cargadas: int = Field(default=0, alias="filasCargadas")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
 class ReportRequest(BaseModel):
     numero_documento_docente: str = Field(default="", alias="numeroDocumentoDocente")
     id_profesor: str = Field(default="", alias="idProfesor")
@@ -15,7 +24,7 @@ class ReportRequest(BaseModel):
     componente: str = "TODOS"
     visualizar_componente: bool = Field(default=False, alias="visualizarComponente")
 
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
     @field_validator(
         "numero_documento_docente",
@@ -39,6 +48,7 @@ class UploadResponse(BaseModel):
     archivo: str
     filas_cargadas: int = Field(alias="filasCargadas")
     columnas_detectadas: list[str] = Field(alias="columnasDetectadas")
+    base_datos: DatasetMetadata = Field(alias="baseDatos")
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -70,5 +80,6 @@ class ReportResponse(BaseModel):
     filtros_aplicados: AppliedFilters = Field(alias="filtrosAplicados")
     tabla: list[ReportTableRow]
     mensaje: str
+    base_datos: DatasetMetadata | None = Field(default=None, alias="baseDatos")
 
     model_config = ConfigDict(populate_by_name=True)

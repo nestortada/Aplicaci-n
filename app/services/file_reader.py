@@ -19,7 +19,12 @@ class ParsedDataset:
 
 def parse_dataset_file(filename: str, content: bytes) -> ParsedDataset:
     if not content:
-        raise AppError(400, "archivo_vacio", "El archivo enviado esta vacio.")
+        raise AppError(
+            400,
+            "archivo_vacio",
+            "El archivo enviado esta vacio.",
+            {"archivo": filename, "sugerencia": "Seleccione un archivo .xlsx o .csv con datos."},
+        )
 
     suffix = Path(filename).suffix.casefold()
     if suffix == ".xlsx":
@@ -31,7 +36,11 @@ def parse_dataset_file(filename: str, content: bytes) -> ParsedDataset:
         415,
         "formato_invalido",
         "Formato de archivo invalido. Solo se aceptan archivos .xlsx o .csv.",
-        {"formatosPermitidos": [".xlsx", ".csv"]},
+        {
+            "archivo": filename,
+            "formatoRecibido": suffix or "sin extension",
+            "formatosPermitidos": [".xlsx", ".csv"],
+        },
     )
 
 
@@ -39,7 +48,12 @@ def _parse_xlsx(content: bytes) -> ParsedDataset:
     try:
         workbook = openpyxl.load_workbook(BytesIO(content), read_only=True, data_only=True)
     except Exception as exc:
-        raise AppError(400, "excel_invalido", "No fue posible leer el archivo Excel.") from exc
+        raise AppError(
+            400,
+            "excel_invalido",
+            "No fue posible leer el archivo Excel.",
+            {"sugerencia": "Verifique que el archivo no este corrupto y que sea .xlsx real."},
+        ) from exc
 
     sheet = workbook[workbook.sheetnames[0]]
     rows_iterator = sheet.iter_rows(values_only=True)
@@ -47,7 +61,12 @@ def _parse_xlsx(content: bytes) -> ParsedDataset:
     try:
         headers = list(next(rows_iterator))
     except StopIteration as exc:
-        raise AppError(400, "archivo_vacio", "El archivo Excel no contiene filas.") from exc
+        raise AppError(
+            400,
+            "archivo_vacio",
+            "El archivo Excel no contiene filas.",
+            {"sugerencia": "Incluya una fila de encabezados y al menos una fila de datos."},
+        ) from exc
 
     column_index, detected_columns, missing = build_column_index(headers)
     _raise_missing_columns_if_needed(missing)
@@ -74,7 +93,12 @@ def _parse_csv(content: bytes) -> ParsedDataset:
     try:
         headers = next(reader)
     except StopIteration as exc:
-        raise AppError(400, "archivo_vacio", "El archivo CSV no contiene filas.") from exc
+        raise AppError(
+            400,
+            "archivo_vacio",
+            "El archivo CSV no contiene filas.",
+            {"sugerencia": "Incluya una fila de encabezados y al menos una fila de datos."},
+        ) from exc
 
     column_index, detected_columns, missing = build_column_index(headers)
     _raise_missing_columns_if_needed(missing)
@@ -102,6 +126,8 @@ def _raise_missing_columns_if_needed(missing: list[str]) -> None:
             422,
             "columnas_faltantes",
             "Faltan columnas obligatorias: " + ", ".join(missing),
-            {"columnasFaltantes": missing},
+            {
+                "columnasFaltantes": missing,
+                "sugerencia": "Revise que los encabezados coincidan con la plantilla esperada.",
+            },
         )
-

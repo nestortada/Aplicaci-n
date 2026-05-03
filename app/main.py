@@ -1,17 +1,25 @@
 from __future__ import annotations
 
+import sqlite3
 import sys
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.config import get_database_path
-from app.exceptions import AppError, app_error_handler
-from app.models import ReportRequest, ReportResponse, UploadResponse
+from app.exceptions import (
+    AppError,
+    app_error_handler,
+    http_exception_handler,
+    request_validation_error_handler,
+    unexpected_error_handler,
+)
+from app.models import DatasetMetadata, ReportRequest, ReportResponse, UploadResponse
 from app.repository import DatasetRepository
 from app.services.file_reader import parse_dataset_file
 from app.services.report_service import ReportService
@@ -29,10 +37,23 @@ def create_app(repository: DatasetRepository | None = None) -> FastAPI:
     )
     api.state.repository = repository
     api.add_exception_handler(AppError, app_error_handler)
+    api.add_exception_handler(RequestValidationError, request_validation_error_handler)
+    api.add_exception_handler(HTTPException, http_exception_handler)
+    api.add_exception_handler(Exception, unexpected_error_handler)
 
     @api.get("/health")
     async def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @api.get(
+        "/api/uploads/estado",
+        response_model=DatasetMetadata,
+        response_model_by_alias=True,
+    )
+    async def upload_status(
+        repository: Annotated[DatasetRepository, Depends(get_repository)],
+    ) -> DatasetMetadata:
+        return DatasetMetadata(**_safe_upload_metadata(repository))
 
     @api.post(
         "/api/uploads",
@@ -59,13 +80,28 @@ def create_app(repository: DatasetRepository | None = None) -> FastAPI:
     ) -> UploadResponse:
         uploaded_file = await extract_uploaded_file(request)
         parsed_dataset = parse_dataset_file(uploaded_file.filename, uploaded_file.content)
-        loaded_rows = repository.replace_rows(parsed_dataset.rows, uploaded_file.filename)
+        try:
+            loaded_rows = repository.replace_rows(parsed_dataset.rows, uploaded_file.filename)
+        except sqlite3.Error as exc:
+            raise AppError(
+                500,
+                "base_no_guardada",
+                "El archivo fue leido, pero no fue posible guardar la base de datos.",
+                {
+                    "archivo": uploaded_file.filename,
+                    "filasLeidas": len(parsed_dataset.rows),
+                    "baseDatos": _safe_upload_metadata(repository),
+                    "sugerencia": "Verifique permisos y disponibilidad del archivo SQLite configurado.",
+                },
+            ) from exc
+        metadata = _safe_upload_metadata(repository)
 
         return UploadResponse(
             estado="ok",
             archivo=uploaded_file.filename,
             filasCargadas=loaded_rows,
             columnasDetectadas=parsed_dataset.detected_columns,
+            baseDatos=metadata,
         )
 
     @api.post(
@@ -77,13 +113,37 @@ def create_app(repository: DatasetRepository | None = None) -> FastAPI:
         request: ReportRequest,
         repository: Annotated[DatasetRepository, Depends(get_repository)],
     ) -> ReportResponse:
-        return ReportService(repository).build_professor_sessions_report(request)
+        try:
+            return ReportService(repository).build_professor_sessions_report(request)
+        except sqlite3.Error as exc:
+            raise AppError(
+                500,
+                "base_no_disponible",
+                "No fue posible consultar la base de datos cargada.",
+                {
+                    "baseDatos": _safe_upload_metadata(repository),
+                    "sugerencia": "Verifique que la base SQLite exista y sea accesible.",
+                },
+            ) from exc
 
     return api
 
 
 async def get_repository(request: Request) -> DatasetRepository:
     return request.app.state.repository
+
+
+def _safe_upload_metadata(repository: DatasetRepository) -> dict[str, object]:
+    try:
+        return repository.get_upload_metadata()
+    except sqlite3.Error:
+        return {
+            "activa": False,
+            "archivo": "",
+            "fechaCarga": "",
+            "filasCargadas": 0,
+            "error": "No fue posible leer la metadata de la base.",
+        }
 
 
 app = create_app()
