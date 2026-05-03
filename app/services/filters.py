@@ -1,0 +1,94 @@
+from __future__ import annotations
+
+import re
+from typing import Any
+
+
+PERIOD_PATTERN = re.compile(r"(?P<year>\d{4})\s*[-_]\s*(?P<term>\d+)")
+
+
+def clean_filter(value: str | None) -> str:
+    return "" if value is None else str(value).strip()
+
+
+def same_text(left: str | None, right: str | None) -> bool:
+    return clean_filter(left).casefold() == clean_filter(right).casefold()
+
+
+def is_all_filter(value: str | None) -> bool:
+    cleaned = clean_filter(value)
+    return not cleaned or cleaned.casefold() == "todos"
+
+
+def filter_by_professor(rows: list[dict[str, Any]], numero_documento_docente: str, id_profesor: str) -> list[dict[str, Any]]:
+    document = clean_filter(numero_documento_docente)
+    professor_id = clean_filter(id_profesor)
+
+    filtered = rows
+    if document:
+        filtered = [row for row in filtered if same_text(row.get("numero_documento_docente"), document)]
+    if professor_id:
+        filtered = [row for row in filtered if same_text(row.get("id_profesor"), professor_id)]
+    return filtered
+
+
+def filter_by_ciclo_lectivo(rows: list[dict[str, Any]], ciclo_lectivo: str) -> list[dict[str, Any]]:
+    return [row for row in rows if same_text(row.get("ciclo_lectivo"), ciclo_lectivo)]
+
+
+def filter_by_cycle_selection(
+    rows: list[dict[str, Any]],
+    ciclo_lectivo: str,
+    ciclo_lectivo_inicio: str,
+    ciclo_lectivo_final: str,
+) -> list[dict[str, Any]]:
+    exact_cycle = clean_filter(ciclo_lectivo)
+    start_cycle = clean_filter(ciclo_lectivo_inicio)
+    end_cycle = clean_filter(ciclo_lectivo_final)
+
+    if start_cycle or end_cycle:
+        start_key = parse_cycle_key(start_cycle) if start_cycle else None
+        end_key = parse_cycle_key(end_cycle) if end_cycle else None
+        if start_key and end_key and start_key > end_key:
+            start_key, end_key = end_key, start_key
+
+        filtered_rows: list[dict[str, Any]] = []
+        for row in rows:
+            row_key = parse_cycle_key(row.get("ciclo_lectivo"))
+            if row_key is None:
+                continue
+            if start_key and row_key < start_key:
+                continue
+            if end_key and row_key > end_key:
+                continue
+            filtered_rows.append(row)
+        return filtered_rows
+
+    if exact_cycle:
+        return filter_by_ciclo_lectivo(rows, exact_cycle)
+
+    return rows
+
+
+def parse_cycle_key(value: str | None) -> tuple[int, int] | None:
+    match = PERIOD_PATTERN.search(clean_filter(value))
+    if not match:
+        return None
+    return int(match.group("year")), int(match.group("term"))
+
+
+def apply_optional_filters(rows: list[dict[str, Any]], nombre_curso: str, componente: str) -> list[dict[str, Any]]:
+    filtered = rows
+    if not is_all_filter(nombre_curso):
+        filtered = [row for row in filtered if same_text(row.get("nombre_curso"), nombre_curso)]
+    if not is_all_filter(componente):
+        filtered = [row for row in filtered if same_text(row.get("componente"), componente)]
+    return filtered
+
+
+def first_valid_professor_name(rows: list[dict[str, Any]]) -> str:
+    for row in rows:
+        name = clean_filter(row.get("nombre_profesor"))
+        if name:
+            return name
+    return "PROFESOR SIN NOMBRE"
