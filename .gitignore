@@ -14,6 +14,5 @@ venv/
 frontend/node_modules/
 frontend/dist/
 frontend/coverage/
-frontend/public/downloads/*.exe
 /build/
 /dist/
