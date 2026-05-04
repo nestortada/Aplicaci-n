@@ -385,7 +385,7 @@ export default function App() {
           <span className="material-symbols-outlined" aria-hidden="true">
             download
           </span>
-          Descargar .exe
+          Descargar Aplicación
         </a>
       </header>
 
