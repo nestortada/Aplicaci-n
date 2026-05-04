@@ -20,6 +20,7 @@ import type {
   FilterParams,
   IdentificationType,
   ReportResponse,
+  ReportTableRow,
   RuntimeEnvironment,
 } from "./types";
 import { copyRichText } from "./utils/clipboard";
@@ -61,12 +62,13 @@ export default function App() {
   const [isSearching, setIsSearching] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [result, setResult] = useState<ReportResponse | null>(null);
+  const [orderedTableRows, setOrderedTableRows] = useState<ReportTableRow[]>([]);
   const [formError, setFormError] = useState("");
   const [toast, setToast] = useState("");
   const [runtime, setRuntime] = useState<RuntimeEnvironment | "loading">("loading");
   const [controlPanelWidth, setControlPanelWidth] = useState(() => {
     const savedWidth = Number(window.localStorage.getItem("sabana-control-panel-width"));
-    return Number.isFinite(savedWidth) && savedWidth >= 26 && savedWidth <= 55 ? savedWidth : 33;
+    return Number.isFinite(savedWidth) && savedWidth >= 28 && savedWidth <= 48 ? savedWidth : 31;
   });
   const [isResizing, setIsResizing] = useState(false);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -77,6 +79,12 @@ export default function App() {
   const ciclosInicio = useMemo(() => [EMPTY_CYCLE_OPTION, ...ciclos], [ciclos]);
   const materiaKey = materia.join("\u001f");
   const componenteKey = componente.join("\u001f");
+  const outputReport = useMemo(() => {
+    if (!result) {
+      return null;
+    }
+    return { ...result, tabla: orderedTableRows.length > 0 ? orderedTableRows : result.tabla };
+  }, [orderedTableRows, result]);
 
   const ciclosFin = useMemo(() => {
     if (!cicloInicio) {
@@ -164,7 +172,7 @@ export default function App() {
       }
       const rect = grid.getBoundingClientRect();
       const nextWidth = ((event.clientX - rect.left) / rect.width) * 100;
-      setControlPanelWidth(clamp(nextWidth, 26, 55));
+      setControlPanelWidth(clamp(nextWidth, 28, 48));
     }
 
     function handlePointerUp() {
@@ -271,24 +279,24 @@ export default function App() {
   }, [activeDatabase, selectedProfessor, identificationType, cicloInicio, cicloFin, materiaKey, componenteKey]);
 
   const handleCopyTable = useCallback(async () => {
-    if (!result) {
+    if (!outputReport) {
       return;
     }
     await copyRichText({
-      text: buildTableText(result.tabla),
-      html: buildTableHtml(result.tabla),
+      text: buildTableText(outputReport.tabla),
+      html: buildTableHtml(outputReport.tabla),
     });
-  }, [result]);
+  }, [outputReport]);
 
   const handleCopyMessage = useCallback(async () => {
-    if (!result) {
+    if (!outputReport) {
       return;
     }
     await copyRichText({
-      text: buildMessageText(result),
-      html: buildMessageHtml(result),
+      text: buildMessageText(outputReport),
+      html: buildMessageHtml(outputReport),
     });
-  }, [result]);
+  }, [outputReport]);
 
   async function handleFileSelected(file: File) {
     setUploadError("");
@@ -307,6 +315,7 @@ export default function App() {
       setUploadStatus("success");
       resetFilters();
       setResult(null);
+      setOrderedTableRows([]);
       const filterResponse = await getCiclos();
       setCiclos(filterResponse.opciones);
     } catch (error) {
@@ -327,6 +336,7 @@ export default function App() {
     setUploadError("");
     resetFilters();
     setResult(null);
+    setOrderedTableRows([]);
     showToast("Parámetros limpiados");
   }
 
@@ -344,6 +354,7 @@ export default function App() {
       setCiclos([]);
       resetFilters();
       setResult(null);
+      setOrderedTableRows([]);
       showToast("Base y filtros limpiados");
     } catch (error) {
       setFormError(error instanceof Error ? error.message : "No fue posible borrar la base de datos.");
@@ -361,15 +372,18 @@ export default function App() {
     if (!activeDatabase) {
       setFormError("Primero carga una base de datos.");
       setResult(null);
+      setOrderedTableRows([]);
       return;
     }
     if (!cleanIdentification) {
       setFormError("Ingresa una identificación para consultar.");
       setResult(null);
+      setOrderedTableRows([]);
       return;
     }
     setIsSearching(true);
     setResult(null);
+    setOrderedTableRows([]);
     try {
       const report = await generateReporte({
         numeroDocumentoDocente: identificationType === "document" ? cleanIdentification : "",
@@ -383,8 +397,10 @@ export default function App() {
         visualizarComponente,
       });
       setResult(report);
+      setOrderedTableRows(report.tabla);
     } catch (error) {
       setResult(null);
+      setOrderedTableRows([]);
       setFormError(error instanceof Error ? error.message : "No se encontraron datos para la búsqueda.");
     } finally {
       setIsSearching(false);
@@ -493,19 +509,19 @@ export default function App() {
   }
 
   async function handleSendEmail() {
-    if (!result || isSendingEmail) {
+    if (!outputReport || isSendingEmail) {
       return;
     }
 
-    const subject = `Solicitud Información - ${result.profesor}`;
-    const bodyText = result.mensaje?.trim() || buildMessageText(result);
+    const subject = `Solicitud Información - ${outputReport.profesor}`;
+    const bodyText = buildMessageText(outputReport);
     setIsSendingEmail(true);
     try {
       await openOutlookDraft({
         to: EMAIL_TO,
         cc: EMAIL_CC,
         subject,
-        bodyHtml: buildMessageHtml(result),
+        bodyHtml: buildMessageHtml(outputReport),
         bodyText,
       });
       showToast("Borrador abierto en Outlook");
@@ -586,15 +602,15 @@ export default function App() {
             type="button"
             aria-label="Ajustar ancho de paneles"
             aria-orientation="vertical"
-            aria-valuemin={26}
-            aria-valuemax={55}
+            aria-valuemin={28}
+            aria-valuemax={48}
             aria-valuenow={Math.round(controlPanelWidth)}
             role="separator"
             onPointerDown={(event) => {
               event.preventDefault();
               setIsResizing(true);
             }}
-            onDoubleClick={() => setControlPanelWidth(33)}
+            onDoubleClick={() => setControlPanelWidth(31)}
             title="Arrastra para ajustar los paneles. Doble click para restaurar."
           >
             <span aria-hidden="true" />
@@ -609,6 +625,8 @@ export default function App() {
             onSendEmail={handleSendEmail}
             onCopied={showToast}
             onCopyError={setFormError}
+            onTableRowsChange={setOrderedTableRows}
+            exportReport={outputReport}
             showSendEmail={showSendEmail}
             isSendingEmail={isSendingEmail}
           />

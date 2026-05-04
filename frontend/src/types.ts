@@ -43,7 +43,16 @@ export interface ReportTableRow {
   fechaInicio: string;
   fechaFinal: string;
   sesiones: number;
+  componente?: string;
   departamento: string;
+}
+
+export interface ReportMetricRow {
+  semestre: string;
+  materia: string;
+  componente: string;
+  departamento: string;
+  sesiones: number;
 }
 
 export interface AppliedFilters {
@@ -63,6 +72,7 @@ export interface ReportResponse {
   profesor: string;
   filtrosAplicados: AppliedFilters;
   tabla: ReportTableRow[];
+  metricas?: ReportMetricRow[];
   mensaje: string;
   baseDatos: DatasetMetadata | null;
 }

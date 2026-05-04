@@ -1,6 +1,10 @@
-import type { ReportResponse } from "../types";
+import { useState } from "react";
+import type { ReportResponse, ReportTableRow } from "../types";
 import { CopyButton } from "./CopyButton";
+import { ExportButton } from "./ExportButton";
+import { ResultPreviewModal } from "./ResultPreviewModal";
 import { ResultTable } from "./ResultTable";
+import { Tooltip } from "./Tooltip";
 
 interface CertificatePreviewProps {
   result: ReportResponse | null;
@@ -11,6 +15,8 @@ interface CertificatePreviewProps {
   onSendEmail: () => void | Promise<void>;
   onCopied: (message: string) => void;
   onCopyError: (message: string) => void;
+  onTableRowsChange?: (rows: ReportTableRow[]) => void;
+  exportReport?: ReportResponse | null;
   showSendEmail: boolean;
   isSendingEmail: boolean;
 }
@@ -24,9 +30,12 @@ export function CertificatePreview({
   onSendEmail,
   onCopied,
   onCopyError,
+  onTableRowsChange,
+  exportReport,
   showSendEmail,
   isSendingEmail,
 }: CertificatePreviewProps) {
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const professorName = result?.profesor || "[PROFESOR]";
   const hasRows = Boolean(result?.tabla.length);
 
@@ -39,7 +48,7 @@ export function CertificatePreview({
           </span>
           Resultado
         </h2>
-        <span className="document-kicker">Document Preview</span>
+        <ExportButton report={exportReport || null} onError={onCopyError} />
       </div>
 
       <article className={`certificate-sheet ${hasRows ? "certificate-sheet--ready" : ""}`}>
@@ -74,16 +83,29 @@ export function CertificatePreview({
               </p>
 
               <div className="table-actions">
+                <Tooltip label="Ver detalles">
+                  <button
+                    className="copy-button copy-button--subtle copy-button--icon-only"
+                    type="button"
+                    onClick={() => setIsPreviewOpen(true)}
+                    aria-label="Ver detalles"
+                  >
+                    <span className="material-symbols-outlined" aria-hidden="true">
+                      visibility
+                    </span>
+                  </button>
+                </Tooltip>
                 <CopyButton
                   label="Copiar tabla"
                   copiedLabel="Tabla copiada"
                   tooltip="Copiar solo la tabla"
+                  iconOnly
                   onCopy={onCopyTable}
                   onCopied={onCopied}
                   onError={onCopyError}
                 />
               </div>
-              <ResultTable rows={result.tabla} />
+              <ResultTable rows={result.tabla} onRowsChange={onTableRowsChange} />
             </div>
             <div className="certificate-footer">
               <div />
@@ -130,6 +152,7 @@ export function CertificatePreview({
           </button>
         ) : null}
       </div>
+      {isPreviewOpen && result ? <ResultPreviewModal result={result} onClose={() => setIsPreviewOpen(false)} /> : null}
     </section>
   );
 }

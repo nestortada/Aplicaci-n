@@ -4,7 +4,7 @@ from collections import OrderedDict
 from typing import Any
 
 from app.exceptions import AppError
-from app.models import ReportTableRow
+from app.models import ReportMetricRow, ReportTableRow
 from app.services.time_calculator import InvalidTimeError, calculate_duration_hours
 
 
@@ -41,7 +41,7 @@ def attach_session_hours(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def group_report_rows(rows: list[dict[str, Any]], visualizar_componente: bool) -> list[ReportTableRow]:
-    groups: OrderedDict[tuple[str, str, str, str, str], float] = OrderedDict()
+    groups: OrderedDict[tuple[str, str, str, str, str], dict[str, Any]] = OrderedDict()
 
     for row in rows:
         semestre = _clean(row.get("ciclo_lectivo"))
@@ -49,8 +49,13 @@ def group_report_rows(rows: list[dict[str, Any]], visualizar_componente: bool) -
         fecha_inicio = _clean(row.get("fecha_inicio"))
         fecha_final = _clean(row.get("fecha_final"))
         departamento = _clean(row.get("descripcion_materia"))
+        componente = _clean(row.get("componente"))
         key = (semestre, materia, fecha_inicio, fecha_final, departamento)
-        groups[key] = groups.get(key, 0.0) + float(row.get("sesiones", 0))
+        if key not in groups:
+            groups[key] = {"sesiones": 0.0, "componentes": set()}
+        groups[key]["sesiones"] += float(row.get("sesiones", 0))
+        if componente:
+            groups[key]["componentes"].add(componente)
 
     return [
         ReportTableRow(
@@ -58,10 +63,34 @@ def group_report_rows(rows: list[dict[str, Any]], visualizar_componente: bool) -
             materia=materia,
             fechaInicio=fecha_inicio,
             fechaFinal=fecha_final,
-            sesiones=_compact_number(sessions),
+            sesiones=_compact_number(group["sesiones"]),
+            componente=", ".join(sorted(group["componentes"])),
             departamento=departamento,
         )
-        for (semestre, materia, fecha_inicio, fecha_final, departamento), sessions in groups.items()
+        for (semestre, materia, fecha_inicio, fecha_final, departamento), group in groups.items()
+    ]
+
+
+def build_metric_rows(rows: list[dict[str, Any]]) -> list[ReportMetricRow]:
+    groups: OrderedDict[tuple[str, str, str, str], float] = OrderedDict()
+
+    for row in rows:
+        semestre = _clean(row.get("ciclo_lectivo"))
+        materia = _clean(row.get("nombre_curso"))
+        componente = _clean(row.get("componente"))
+        departamento = _clean(row.get("descripcion_materia"))
+        key = (semestre, materia, componente, departamento)
+        groups[key] = groups.get(key, 0.0) + float(row.get("sesiones", 0))
+
+    return [
+        ReportMetricRow(
+            semestre=semestre,
+            materia=materia,
+            componente=componente,
+            departamento=departamento,
+            sesiones=_compact_number(sessions),
+        )
+        for (semestre, materia, componente, departamento), sessions in groups.items()
     ]
 
 

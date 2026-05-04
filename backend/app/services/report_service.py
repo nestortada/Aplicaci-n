@@ -14,7 +14,7 @@ from app.services.filters import (
     parse_cycle_key,
 )
 from app.services.message_builder import build_message
-from app.services.report_builder import attach_session_hours, group_report_rows
+from app.services.report_builder import attach_session_hours, build_metric_rows, group_report_rows
 
 
 class ReportService:
@@ -185,6 +185,7 @@ class ReportService:
             profesor=professor_name,
             filtrosAplicados=filters,
             tabla=table_rows,
+            metricas=build_metric_rows(rows_with_hours),
             mensaje=build_message(professor_name, table_rows),
             baseDatos=database_metadata,
         )

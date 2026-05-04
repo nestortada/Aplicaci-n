@@ -391,6 +391,9 @@ describe("Sabana Certificado frontend", () => {
     expect(writeText).toHaveBeenLastCalledWith(expect.not.stringContaining("Buen día"));
     expect(writeText).toHaveBeenLastCalledWith(expect.stringContaining("SEMESTRE"));
 
+    await user.click(screen.getByRole("button", { name: "Ver detalles" }));
+    expect(screen.getByRole("dialog", { name: /sesiones de martinez/i })).toBeInTheDocument();
+
     await user.click(screen.getByRole("button", { name: /copiar para envío/i }));
     expect(writeText).toHaveBeenLastCalledWith(expect.stringContaining("Buen día, cordial saludo"));
   });

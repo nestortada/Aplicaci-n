@@ -93,15 +93,25 @@ class ReportTableRow(BaseModel):
     fecha_inicio: str = Field(alias="fechaInicio")
     fecha_final: str = Field(alias="fechaFinal")
     sesiones: int | float
+    componente: str = ""
     departamento: str
 
     model_config = ConfigDict(populate_by_name=True)
+
+
+class ReportMetricRow(BaseModel):
+    semestre: str
+    materia: str
+    componente: str = ""
+    departamento: str
+    sesiones: int | float
 
 
 class ReportResponse(BaseModel):
     profesor: str
     filtros_aplicados: AppliedFilters = Field(alias="filtrosAplicados")
     tabla: list[ReportTableRow]
+    metricas: list[ReportMetricRow] = Field(default_factory=list)
     mensaje: str
     base_datos: DatasetMetadata | None = Field(default=None, alias="baseDatos")
 

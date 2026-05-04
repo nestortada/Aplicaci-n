@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { type FormEvent } from "react";
 import type { DatasetMetadata, FilterOption, IdentificationType } from "../types";
 import { FileUpload } from "./FileUpload";
 import { MultiSelectField } from "./MultiSelectField";
@@ -133,19 +133,6 @@ export function ControlPanel({
                 autoComplete="off"
                 onChange={(event) => onIdentificationChange(event.target.value)}
               />
-              {identificationType === "professorName" ? (
-                <button
-                  type="button"
-                  className="professor-verify-button"
-                  title="Verificar nombre del profesor"
-                  onClick={onVerifyProfessor}
-                  aria-label="Verificar nombre del profesor"
-                >
-                  <span className="material-symbols-outlined" aria-hidden="true">
-                    check_circle
-                  </span>
-                </button>
-              ) : null}
               {shouldShowProfessorSuggestions ? (
                 <div className="professor-suggestions" id="professor-suggestions" role="listbox">
                   {profesores.map((professor) => (
@@ -165,6 +152,19 @@ export function ControlPanel({
                 </div>
               ) : null}
             </div>
+            {identificationType === "professorName" ? (
+              <button
+                type="button"
+                className="professor-verify-button"
+                title="Verificar nombre del profesor"
+                onClick={onVerifyProfessor}
+                aria-label="Verificar nombre del profesor"
+              >
+                <span className="material-symbols-outlined" aria-hidden="true">
+                  search
+                </span>
+              </button>
+            ) : null}
           </div>
         </div>
 
