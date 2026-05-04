@@ -102,6 +102,32 @@ ALLOWED_ORIGINS=https://tu-frontend.vercel.app
 
 Ejecuta estos comandos desde la raiz del proyecto.
 
+## Ejecutar con Docker
+
+La aplicacion puede correr en un solo contenedor: el frontend se compila con Vite y FastAPI sirve tanto la API como los archivos estaticos generados.
+
+```bash
+docker compose up --build
+```
+
+La aplicacion queda disponible en:
+
+```text
+http://localhost:8080
+```
+
+El archivo SQLite se guarda en el volumen `sabana_certificado_data`, por lo que la base cargada se conserva aunque reinicies el contenedor. Para detener la aplicacion:
+
+```bash
+docker compose down
+```
+
+Si necesitas borrar tambien la base persistida:
+
+```bash
+docker compose down -v
+```
+
 ### 1. Preparar el backend
 
 ```bash

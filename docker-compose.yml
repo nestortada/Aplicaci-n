@@ -1,0 +1,25 @@
+name: sabana-certificado
+
+services:
+  sabana-certificado:
+    build:
+      context: .
+    image: sabana-certificado:local
+    ports:
+      - "8080:8000"
+    environment:
+      DATABASE_PATH: /app/data/reportes.sqlite3
+      FRONTEND_DIST_PATH: /app/frontend/dist
+      HOST: 0.0.0.0
+      PORT: 8000
+    volumes:
+      - sabana_certificado_data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  sabana_certificado_data:
