@@ -4,9 +4,12 @@ from typing import Any
 
 from app.services.filters import (
     apply_optional_filters,
+    clean_filter,
     filter_by_cycle_selection,
     filter_by_professor,
     is_all_filter,
+    name_matches,
+    normalize_search_text,
     parse_cycle_key,
 )
 
@@ -29,6 +32,7 @@ def build_course_options(
     rows: list[dict[str, Any]],
     numero_documento_docente: str,
     id_profesor: str,
+    nombre_profesor: str,
     ciclo_lectivo_inicio: str,
     ciclo_lectivo_final: str,
 ) -> list[dict[str, str]]:
@@ -36,6 +40,7 @@ def build_course_options(
         rows,
         numero_documento_docente,
         id_profesor,
+        nombre_profesor,
         ciclo_lectivo_inicio,
         ciclo_lectivo_final,
     )
@@ -46,6 +51,7 @@ def build_component_options(
     rows: list[dict[str, Any]],
     numero_documento_docente: str,
     id_profesor: str,
+    nombre_profesor: str,
     ciclo_lectivo_inicio: str,
     ciclo_lectivo_final: str,
     nombre_curso: str | list[str],
@@ -54,12 +60,44 @@ def build_component_options(
         rows,
         numero_documento_docente,
         id_profesor,
+        nombre_profesor,
         ciclo_lectivo_inicio,
         ciclo_lectivo_final,
     )
     if not is_all_filter(nombre_curso):
         filtered_rows = apply_optional_filters(filtered_rows, nombre_curso, "TODOS")
     return _field_options(filtered_rows, "componente")
+
+
+def build_department_options(
+    rows: list[dict[str, Any]],
+    numero_documento_docente: str,
+    id_profesor: str,
+    nombre_profesor: str,
+    ciclo_lectivo_inicio: str,
+    ciclo_lectivo_final: str,
+    nombre_curso: str | list[str],
+    componente: str | list[str],
+) -> list[dict[str, str]]:
+    filtered_rows = _filter_available_rows(
+        rows,
+        numero_documento_docente,
+        id_profesor,
+        nombre_profesor,
+        ciclo_lectivo_inicio,
+        ciclo_lectivo_final,
+    )
+    filtered_rows = apply_optional_filters(filtered_rows, nombre_curso, componente)
+    return _field_options(filtered_rows, "descripcion_materia")
+
+
+def build_professor_options(rows: list[dict[str, Any]], query: str, limit: int = 12) -> list[dict[str, str]]:
+    search = clean_filter(query)
+    unique_professors = _unique_values(rows, "nombre_profesor")
+    if search:
+        unique_professors = [name for name in unique_professors if name_matches(name, search)]
+    unique_professors.sort(key=lambda name: (_professor_match_rank(name, search), normalize_search_text(name)))
+    return [{"valor": name, "etiqueta": name} for name in unique_professors[:limit]]
 
 
 def format_cycle_label(value: str) -> str:
@@ -74,10 +112,11 @@ def _filter_available_rows(
     rows: list[dict[str, Any]],
     numero_documento_docente: str,
     id_profesor: str,
+    nombre_profesor: str,
     ciclo_lectivo_inicio: str,
     ciclo_lectivo_final: str,
 ) -> list[dict[str, Any]]:
-    professor_rows = filter_by_professor(rows, numero_documento_docente, id_profesor)
+    professor_rows = filter_by_professor(rows, numero_documento_docente, id_profesor, nombre_profesor)
     return filter_by_cycle_selection(professor_rows, "", ciclo_lectivo_inicio, ciclo_lectivo_final)
 
 
@@ -97,3 +136,15 @@ def _unique_values(rows: list[dict[str, Any]], field: str) -> list[str]:
         seen.add(key)
         values.append(value)
     return values
+
+
+def _professor_match_rank(name: str, query: str) -> int:
+    normalized_name = normalize_search_text(name)
+    normalized_query = normalize_search_text(query)
+    if not normalized_query:
+        return 0
+    if normalized_name.startswith(normalized_query):
+        return 0
+    if normalized_query in normalized_name:
+        return 1
+    return 2

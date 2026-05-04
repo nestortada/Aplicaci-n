@@ -20,6 +20,7 @@ from app.config import (
     get_allowed_origins,
     get_database_path,
     get_frontend_dist_path,
+    get_runtime_environment,
     get_server_host,
     get_server_port,
     is_render_environment,
@@ -32,10 +33,24 @@ from app.exceptions import (
     request_validation_error_handler,
     unexpected_error_handler,
 )
-from app.models import DatasetMetadata, FilterOptionsResponse, ReportRequest, ReportResponse, UploadResponse
+from app.models import (
+    DatasetMetadata,
+    FilterOptionsResponse,
+    OutlookDraftRequest,
+    ReportRequest,
+    ReportResponse,
+    UploadResponse,
+)
 from app.repository import DatasetRepository, InMemoryDatasetRepository
-from app.services.filter_options import build_component_options, build_course_options, build_cycle_options
+from app.services.filter_options import (
+    build_component_options,
+    build_course_options,
+    build_cycle_options,
+    build_department_options,
+    build_professor_options,
+)
 from app.services.file_reader import parse_dataset_file
+from app.services.outlook import open_outlook_draft
 from app.services.report_service import ReportService
 from app.services.upload_parser import extract_uploaded_file
 
@@ -77,6 +92,21 @@ def create_app(repository: Repository | None = None) -> FastAPI:
     @api.get("/health")
     async def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @api.get("/api/runtime")
+    async def runtime() -> dict[str, str]:
+        return {"runtime": get_runtime_environment()}
+
+    @api.post("/api/email/outlook")
+    async def outlook_email_draft(request: OutlookDraftRequest) -> dict[str, str]:
+        if get_runtime_environment() == "cloud":
+            raise AppError(
+                404,
+                "outlook_no_disponible",
+                "La apertura de Outlook solo está disponible en local y en la aplicación de escritorio.",
+            )
+        open_outlook_draft(request)
+        return {"estado": "ok"}
 
     @api.get(
         "/api/uploads/estado",
@@ -171,6 +201,18 @@ def create_app(repository: Repository | None = None) -> FastAPI:
         return FilterOptionsResponse(opciones=build_cycle_options(rows))
 
     @api.get(
+        "/api/filtros/profesores",
+        response_model=FilterOptionsResponse,
+        response_model_by_alias=True,
+    )
+    async def professor_filters(
+        repository: Annotated[Repository, Depends(get_repository)],
+        query: str = "",
+    ) -> FilterOptionsResponse:
+        rows = _safe_rows(repository)
+        return FilterOptionsResponse(opciones=build_professor_options(rows, query))
+
+    @api.get(
         "/api/filtros/materias",
         response_model=FilterOptionsResponse,
         response_model_by_alias=True,
@@ -179,6 +221,7 @@ def create_app(repository: Repository | None = None) -> FastAPI:
         repository: Annotated[Repository, Depends(get_repository)],
         numero_documento_docente: Annotated[str, Query(alias="numeroDocumentoDocente")] = "",
         id_profesor: Annotated[str, Query(alias="idProfesor")] = "",
+        nombre_profesor: Annotated[str, Query(alias="nombreProfesor")] = "",
         ciclo_lectivo_inicio: Annotated[str, Query(alias="cicloLectivoInicio")] = "",
         ciclo_lectivo_final: Annotated[str, Query(alias="cicloLectivoFinal")] = "",
     ) -> FilterOptionsResponse:
@@ -188,6 +231,7 @@ def create_app(repository: Repository | None = None) -> FastAPI:
                 rows,
                 numero_documento_docente,
                 id_profesor,
+                nombre_profesor,
                 ciclo_lectivo_inicio,
                 ciclo_lectivo_final,
             )
@@ -202,6 +246,7 @@ def create_app(repository: Repository | None = None) -> FastAPI:
         repository: Annotated[Repository, Depends(get_repository)],
         numero_documento_docente: Annotated[str, Query(alias="numeroDocumentoDocente")] = "",
         id_profesor: Annotated[str, Query(alias="idProfesor")] = "",
+        nombre_profesor: Annotated[str, Query(alias="nombreProfesor")] = "",
         ciclo_lectivo_inicio: Annotated[str, Query(alias="cicloLectivoInicio")] = "",
         ciclo_lectivo_final: Annotated[str, Query(alias="cicloLectivoFinal")] = "",
         nombre_curso: list[str] = Query(default_factory=lambda: ["TODOS"], alias="nombreCurso"),
@@ -212,9 +257,39 @@ def create_app(repository: Repository | None = None) -> FastAPI:
                 rows,
                 numero_documento_docente,
                 id_profesor,
+                nombre_profesor,
                 ciclo_lectivo_inicio,
                 ciclo_lectivo_final,
                 nombre_curso,
+            )
+        )
+
+    @api.get(
+        "/api/filtros/departamentos",
+        response_model=FilterOptionsResponse,
+        response_model_by_alias=True,
+    )
+    async def department_filters(
+        repository: Annotated[Repository, Depends(get_repository)],
+        numero_documento_docente: Annotated[str, Query(alias="numeroDocumentoDocente")] = "",
+        id_profesor: Annotated[str, Query(alias="idProfesor")] = "",
+        nombre_profesor: Annotated[str, Query(alias="nombreProfesor")] = "",
+        ciclo_lectivo_inicio: Annotated[str, Query(alias="cicloLectivoInicio")] = "",
+        ciclo_lectivo_final: Annotated[str, Query(alias="cicloLectivoFinal")] = "",
+        nombre_curso: list[str] = Query(default_factory=lambda: ["TODOS"], alias="nombreCurso"),
+        componente: list[str] = Query(default_factory=lambda: ["TODOS"]),
+    ) -> FilterOptionsResponse:
+        rows = _safe_rows(repository)
+        return FilterOptionsResponse(
+            opciones=build_department_options(
+                rows,
+                numero_documento_docente,
+                id_profesor,
+                nombre_profesor,
+                ciclo_lectivo_inicio,
+                ciclo_lectivo_final,
+                nombre_curso,
+                componente,
             )
         )
 

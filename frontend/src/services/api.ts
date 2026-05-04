@@ -2,8 +2,10 @@ import type {
   DatasetMetadata,
   FilterOptionsResponse,
   FilterParams,
+  OutlookDraftRequest,
   ReportRequest,
   ReportResponse,
+  RuntimeMetadata,
   UploadResponse,
 } from "../types";
 
@@ -26,12 +28,20 @@ export async function getCurrentDatabase(): Promise<DatasetMetadata> {
   return request<DatasetMetadata>("/api/uploads/estado");
 }
 
+export async function getRuntime(): Promise<RuntimeMetadata> {
+  return request<RuntimeMetadata>("/api/runtime");
+}
+
 export async function deleteDatabase(): Promise<DatasetMetadata> {
   return request<DatasetMetadata>("/api/uploads", { method: "DELETE" });
 }
 
 export async function getCiclos(): Promise<FilterOptionsResponse> {
   return request<FilterOptionsResponse>("/api/filtros/ciclos");
+}
+
+export async function getProfesores(query: string): Promise<FilterOptionsResponse> {
+  return request<FilterOptionsResponse>(`/api/filtros/profesores${toQuery({ query })}`);
 }
 
 export async function getMaterias(params: FilterParams): Promise<FilterOptionsResponse> {
@@ -42,8 +52,22 @@ export async function getComponentes(params: FilterParams): Promise<FilterOption
   return request<FilterOptionsResponse>(`/api/filtros/componentes${toQuery(params)}`);
 }
 
+export async function getDepartamentos(params: FilterParams): Promise<FilterOptionsResponse> {
+  return request<FilterOptionsResponse>(`/api/filtros/departamentos${toQuery(params)}`);
+}
+
 export async function generateReporte(params: ReportRequest): Promise<ReportResponse> {
   return request<ReportResponse>("/api/reportes/sesiones-profesor", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(params),
+  });
+}
+
+export async function openOutlookDraft(params: OutlookDraftRequest): Promise<void> {
+  await request<{ estado: string }>("/api/email/outlook", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

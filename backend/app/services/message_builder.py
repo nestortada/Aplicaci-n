@@ -5,12 +5,13 @@ from app.models import ReportTableRow
 
 def build_markdown_table(rows: list[ReportTableRow]) -> str:
     lines = [
-        "| Semestre | Materia | Sesiones | Departamento |",
-        "| --- | --- | ---: | --- |",
+        "| Semestre | Materia | Fecha de inicio | Fecha final | Sesiones | Departamento |",
+        "| --- | --- | --- | --- | ---: | --- |",
     ]
     for row in rows:
         lines.append(
-            f"| {_escape(row.semestre)} | {_escape(row.materia)} | {_format_number(row.sesiones)} | {_escape(row.departamento)} |"
+            f"| {_escape(row.semestre)} | {_escape(row.materia)} | {_escape(row.fecha_inicio)} | "
+            f"{_escape(row.fecha_final)} | {_format_number(row.sesiones)} | {_escape(row.departamento)} |"
         )
     return "\n".join(lines)
 

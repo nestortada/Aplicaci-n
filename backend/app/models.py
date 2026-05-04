@@ -26,11 +26,13 @@ class FilterOptionsResponse(BaseModel):
 class ReportRequest(BaseModel):
     numero_documento_docente: str = Field(default="", alias="numeroDocumentoDocente")
     id_profesor: str = Field(default="", alias="idProfesor")
+    nombre_profesor: str = Field(default="", alias="nombreProfesor")
     ciclo_lectivo: str = Field(default="", alias="cicloLectivo")
     ciclo_lectivo_inicio: str = Field(default="", alias="cicloLectivoInicio")
     ciclo_lectivo_final: str = Field(default="", alias="cicloLectivoFinal")
     nombre_curso: list[str] = Field(default_factory=lambda: ["TODOS"], alias="nombreCurso")
     componente: list[str] = Field(default_factory=lambda: ["TODOS"])
+    departamento: list[str] = Field(default_factory=lambda: ["TODOS"])
     visualizar_componente: bool = Field(default=False, alias="visualizarComponente")
 
     model_config = ConfigDict(populate_by_name=True, extra="forbid")
@@ -38,6 +40,7 @@ class ReportRequest(BaseModel):
     @field_validator(
         "numero_documento_docente",
         "id_profesor",
+        "nombre_profesor",
         "ciclo_lectivo",
         "ciclo_lectivo_inicio",
         "ciclo_lectivo_final",
@@ -49,7 +52,7 @@ class ReportRequest(BaseModel):
             return ""
         return str(value).strip()
 
-    @field_validator("nombre_curso", "componente", mode="before")
+    @field_validator("nombre_curso", "componente", "departamento", mode="before")
     @classmethod
     def normalize_selection(cls, value: Any) -> list[str]:
         if value is None:
@@ -72,11 +75,13 @@ class UploadResponse(BaseModel):
 class AppliedFilters(BaseModel):
     numero_documento_docente: str = Field(alias="numeroDocumentoDocente")
     id_profesor: str = Field(alias="idProfesor")
+    nombre_profesor: str = Field(alias="nombreProfesor")
     ciclo_lectivo: str = Field(alias="cicloLectivo")
     ciclo_lectivo_inicio: str = Field(alias="cicloLectivoInicio")
     ciclo_lectivo_final: str = Field(alias="cicloLectivoFinal")
     nombre_curso: str = Field(alias="nombreCurso")
     componente: str
+    departamento: str
     visualizar_componente: bool = Field(alias="visualizarComponente")
 
     model_config = ConfigDict(populate_by_name=True)
@@ -85,6 +90,8 @@ class AppliedFilters(BaseModel):
 class ReportTableRow(BaseModel):
     semestre: str
     materia: str
+    fecha_inicio: str = Field(alias="fechaInicio")
+    fecha_final: str = Field(alias="fechaFinal")
     sesiones: int | float
     departamento: str
 
@@ -99,3 +106,13 @@ class ReportResponse(BaseModel):
     base_datos: DatasetMetadata | None = Field(default=None, alias="baseDatos")
 
     model_config = ConfigDict(populate_by_name=True)
+
+
+class OutlookDraftRequest(BaseModel):
+    to: str
+    cc: list[str] = Field(default_factory=list)
+    subject: str
+    body_html: str = Field(alias="bodyHtml")
+    body_text: str = Field(default="", alias="bodyText")
+
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")

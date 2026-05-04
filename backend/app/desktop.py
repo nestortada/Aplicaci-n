@@ -19,6 +19,7 @@ from app.main import create_app
 
 def main() -> None:
     _ensure_standard_streams()
+    os.environ["SABANA_RUNTIME"] = "desktop"
     host = get_server_host()
     port = _available_port(get_server_port(), host)
     os.environ["PORT"] = str(port)

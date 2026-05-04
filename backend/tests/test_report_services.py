@@ -27,6 +27,8 @@ def make_row(**overrides: str | int) -> dict[str, str | int]:
         "dia": "Martes",
         "hora_inicio": "05:00:PM",
         "hora_final": "06:00:PM",
+        "fecha_inicio": "2023-01-20",
+        "fecha_final": "2023-05-30",
         "instalacion_id": "B104-CAMP",
         "instalacion_descripcion": "AULA B104",
         "id_profesor": "0000005357",
@@ -34,6 +36,7 @@ def make_row(**overrides: str | int) -> dict[str, str | int]:
         "nombre_profesor": "MARTINEZ HERNANDEZ LINA MARIA",
         "departamento": "1221",
         "descripcion_materia": "PROCESOS INDUSTRIALES",
+        "total_inscritos": "25",
         "id_seccion_combinada": "",
     }
     row.update(overrides)
@@ -64,6 +67,11 @@ class FilterServicesTest(unittest.TestCase):
         self.assertEqual(len(filtered), 1)
         self.assertEqual(filtered[0]["numero_documento_docente"], "52867332")
 
+    def test_filters_by_professor_name_in_any_order(self) -> None:
+        filtered = filter_by_professor(self.rows, "", "", "lina martinez")
+        self.assertEqual(len(filtered), 1)
+        self.assertEqual(filtered[0]["nombre_profesor"], "MARTINEZ HERNANDEZ LINA MARIA")
+
     def test_filters_by_document_and_professor_id(self) -> None:
         filtered = filter_by_professor(self.rows, "52867332", "0000005357")
         self.assertEqual(len(filtered), 1)
@@ -91,6 +99,11 @@ class FilterServicesTest(unittest.TestCase):
         filtered = apply_optional_filters(self.rows, "TODOS", "lab")
         self.assertEqual(len(filtered), 1)
         self.assertEqual(filtered[0]["componente"], "LAB")
+
+    def test_optional_department_filter_uses_subject_description(self) -> None:
+        filtered = apply_optional_filters(self.rows, "TODOS", "TODOS", ["procesos industriales"])
+        self.assertEqual(len(filtered), 1)
+        self.assertEqual(filtered[0]["descripcion_materia"], "PROCESOS INDUSTRIALES")
 
     def test_optional_filters_accept_multiple_values(self) -> None:
         filtered = apply_optional_filters(self.rows, ["SEMINARIO DE PRACTICA", "OTRO CURSO"], ["LEC", "LAB"])
@@ -511,7 +524,7 @@ class ReportServiceTest(unittest.TestCase):
         message = build_message(response.profesor, response.tabla)
 
         self.assertIn("Buen Día", message)
-        self.assertIn("| Semestre | Materia | Sesiones | Departamento |", message)
+        self.assertIn("| Semestre | Materia | Fecha de inicio | Fecha final | Sesiones | Departamento |", message)
         self.assertIn("SEMINARIO DE PRACTICA", message)
 
 

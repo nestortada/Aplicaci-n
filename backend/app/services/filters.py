@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from collections.abc import Sequence
 from typing import Any
 
@@ -36,15 +37,49 @@ def is_all_filter(value: FilterSelection) -> bool:
     return not values or any(item.casefold() == "todos" for item in values)
 
 
-def filter_by_professor(rows: list[dict[str, Any]], numero_documento_docente: str, id_profesor: str) -> list[dict[str, Any]]:
+def normalize_search_text(value: str | None) -> str:
+    cleaned = clean_filter(value)
+    without_accents = "".join(
+        character for character in unicodedata.normalize("NFKD", cleaned) if not unicodedata.combining(character)
+    )
+    return " ".join(without_accents.casefold().split())
+
+
+def name_matches(candidate: str | None, query: str | None) -> bool:
+    normalized_candidate = normalize_search_text(candidate)
+    normalized_query = normalize_search_text(query)
+    if not normalized_query:
+        return True
+    if not normalized_candidate:
+        return False
+    if normalized_query in normalized_candidate:
+        return True
+
+    candidate_tokens = normalized_candidate.split()
+    query_tokens = normalized_query.split()
+    return all(
+        any(candidate_token.startswith(query_token) or query_token in candidate_token for candidate_token in candidate_tokens)
+        for query_token in query_tokens
+    )
+
+
+def filter_by_professor(
+    rows: list[dict[str, Any]],
+    numero_documento_docente: str,
+    id_profesor: str,
+    nombre_profesor: str = "",
+) -> list[dict[str, Any]]:
     document = clean_filter(numero_documento_docente)
     professor_id = clean_filter(id_profesor)
+    professor_name = clean_filter(nombre_profesor)
 
     filtered = rows
     if document:
         filtered = [row for row in filtered if same_text(row.get("numero_documento_docente"), document)]
     if professor_id:
         filtered = [row for row in filtered if same_text(row.get("id_profesor"), professor_id)]
+    if professor_name:
+        filtered = [row for row in filtered if name_matches(row.get("nombre_profesor"), professor_name)]
     return filtered
 
 
@@ -93,7 +128,12 @@ def parse_cycle_key(value: str | None) -> tuple[int, int] | None:
     return int(match.group("year")), int(match.group("term"))
 
 
-def apply_optional_filters(rows: list[dict[str, Any]], nombre_curso: FilterSelection, componente: FilterSelection) -> list[dict[str, Any]]:
+def apply_optional_filters(
+    rows: list[dict[str, Any]],
+    nombre_curso: FilterSelection,
+    componente: FilterSelection,
+    departamento: FilterSelection = None,
+) -> list[dict[str, Any]]:
     filtered = rows
     if not is_all_filter(nombre_curso):
         course_values = {value.casefold() for value in clean_filter_values(nombre_curso)}
@@ -101,6 +141,9 @@ def apply_optional_filters(rows: list[dict[str, Any]], nombre_curso: FilterSelec
     if not is_all_filter(componente):
         component_values = {value.casefold() for value in clean_filter_values(componente)}
         filtered = [row for row in filtered if clean_filter(row.get("componente")).casefold() in component_values]
+    if not is_all_filter(departamento):
+        department_values = {value.casefold() for value in clean_filter_values(departamento)}
+        filtered = [row for row in filtered if clean_filter(row.get("descripcion_materia")).casefold() in department_values]
     return filtered
 
 

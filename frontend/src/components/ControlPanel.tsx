@@ -1,4 +1,4 @@
-import type { FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import type { DatasetMetadata, FilterOption, IdentificationType } from "../types";
 import { FileUpload } from "./FileUpload";
 import { MultiSelectField } from "./MultiSelectField";
@@ -14,13 +14,17 @@ interface ControlPanelProps {
   cicloFin: string;
   materia: string[];
   componente: string[];
+  departamento: string[];
   visualizarComponente: boolean;
   ciclosInicio: FilterOption[];
   ciclosFin: FilterOption[];
   materias: FilterOption[];
   componentes: FilterOption[];
+  departamentos: FilterOption[];
+  profesores: FilterOption[];
   isSearching: boolean;
   formError: string;
+  showProfessorDropdown: boolean;
   onFileSelected: (file: File) => void;
   onDeleteDatabase: () => void;
   onIdentificationTypeChange: (value: IdentificationType) => void;
@@ -29,9 +33,12 @@ interface ControlPanelProps {
   onCicloFinChange: (value: string) => void;
   onMateriaChange: (value: string[]) => void;
   onComponenteChange: (value: string[]) => void;
+  onDepartamentoChange: (value: string[]) => void;
   onVisualizarComponenteChange: (value: boolean) => void;
   onSearch: () => void;
   onClearAll: () => void;
+  onVerifyProfessor: () => void;
+  onSelectProfessor: (professorName: string) => void;
 }
 
 export function ControlPanel({
@@ -44,11 +51,14 @@ export function ControlPanel({
   cicloFin,
   materia,
   componente,
+  departamento,
   visualizarComponente,
   ciclosInicio,
   ciclosFin,
   materias,
   componentes,
+  departamentos,
+  profesores,
   isSearching,
   formError,
   onFileSelected,
@@ -59,11 +69,18 @@ export function ControlPanel({
   onCicloFinChange,
   onMateriaChange,
   onComponenteChange,
+  onDepartamentoChange,
   onVisualizarComponenteChange,
   onSearch,
   onClearAll,
+  onVerifyProfessor,
+  onSelectProfessor,
+  showProfessorDropdown,
 }: ControlPanelProps) {
-  const identificationPlaceholder = identificationType === "id" ? "Id profesor..." : "Número...";
+  const identificationPlaceholder =
+    identificationType === "professorName" ? "Nombre del profesor..." : "Número...";
+  const shouldShowProfessorSuggestions =
+    identificationType === "professorName" && showProfessorDropdown && profesores.length > 0;
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -102,16 +119,52 @@ export function ControlPanel({
               value={identificationType}
               onChange={(event) => onIdentificationTypeChange(event.target.value as IdentificationType)}
             >
-              <option value="id">ID</option>
+              <option value="professorName">Nombre del Profesor</option>
               <option value="document">Número de documento</option>
             </select>
-            <input
-              id="identification-value"
-              className="field-control"
-              placeholder={identificationPlaceholder}
-              value={identification}
-              onChange={(event) => onIdentificationChange(event.target.value)}
-            />
+            <div className="professor-search">
+              <input
+                id="identification-value"
+                className="field-control"
+                placeholder={identificationPlaceholder}
+                value={identification}
+                aria-controls="professor-suggestions"
+                aria-expanded={shouldShowProfessorSuggestions}
+                autoComplete="off"
+                onChange={(event) => onIdentificationChange(event.target.value)}
+              />
+              {identificationType === "professorName" ? (
+                <button
+                  type="button"
+                  className="professor-verify-button"
+                  title="Verificar nombre del profesor"
+                  onClick={onVerifyProfessor}
+                  aria-label="Verificar nombre del profesor"
+                >
+                  <span className="material-symbols-outlined" aria-hidden="true">
+                    check_circle
+                  </span>
+                </button>
+              ) : null}
+              {shouldShowProfessorSuggestions ? (
+                <div className="professor-suggestions" id="professor-suggestions" role="listbox">
+                  {profesores.map((professor) => (
+                    <button
+                      className="professor-suggestion"
+                      key={professor.valor}
+                      type="button"
+                      role="option"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => {
+                        onSelectProfessor(professor.valor);
+                      }}
+                    >
+                      {professor.etiqueta}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
 
@@ -142,6 +195,13 @@ export function ControlPanel({
           value={componente}
           onChange={onComponenteChange}
           options={componentes}
+        />
+
+        <MultiSelectField
+          label="Departamento"
+          value={departamento}
+          onChange={onDepartamentoChange}
+          options={departamentos}
         />
 
         <label className="checkbox-field">

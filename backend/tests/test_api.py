@@ -39,6 +39,8 @@ def valid_row(**overrides: str) -> list[str]:
         "Día": " Martes",
         "Hora Inicio": "05:00:PM",
         "Hora Final": "06:00:PM",
+        "F Inicial": "2023-01-20",
+        "Fecha Final": "2023-05-30",
         "ID Instalación": "B104-CAMP",
         "ID Instalación descripción": "AULA B104",
         "Id profesor": "0000005357",
@@ -46,6 +48,7 @@ def valid_row(**overrides: str) -> list[str]:
         "Nombre profesor": "MARTINEZ HERNANDEZ LINA MARIA",
         "Departamento": "1221",
         "Descripción Materia": "PROCESOS INDUSTRIALES",
+        "Total Inscritos": "25",
         "ID Sección Combinada": "",
     }
     data.update(overrides)
@@ -112,6 +115,31 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(payload["baseDatos"]["archivo"], "datos.xlsx")
         self.assertIn("Ciclo Lectivo", payload["columnasDetectadas"])
 
+    def test_upload_excludes_rows_without_enrolled_students(self) -> None:
+        content = xlsx_bytes(
+            valid_headers(),
+            [
+                valid_row(**{"Nombre del curso": "CURSO VALIDO", "Total Inscritos": "25"}),
+                valid_row(**{"Nombre del curso": "CURSO CERO", "Total Inscritos": "0"}),
+                valid_row(**{"Nombre del curso": "CURSO MENOS UNO", "Total Inscritos": "-1"}),
+            ],
+        )
+
+        response = self.request(
+            "POST",
+            "/api/uploads",
+            files={
+                "file": (
+                    "datos.xlsx",
+                    content,
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                )
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["filasCargadas"], 1)
+
     def test_upload_status_reports_active_dataset(self) -> None:
         response = self.request("GET", "/api/uploads/estado")
 
@@ -127,6 +155,22 @@ class ApiTest(unittest.TestCase):
         self.assertTrue(payload["activa"])
         self.assertEqual(payload["archivo"], "datos.xlsx")
         self.assertEqual(payload["filasCargadas"], 1)
+
+    def test_outlook_draft_endpoint_accepts_html_body(self) -> None:
+        payload = {
+            "to": "solicitud.certifica@unisabana.edu.co",
+            "cc": ["dianarc@unisabana.edu.co", "alvarorodu@unisabana.edu.co"],
+            "subject": "Solicitud Información - PROFESOR",
+            "bodyHtml": "<p>Buen día</p><table><tr><td>Materia</td></tr></table>",
+            "bodyText": "Buen día\nMateria",
+        }
+
+        with patch("app.main.open_outlook_draft") as open_outlook_draft:
+            response = self.request("POST", "/api/email/outlook", json=payload)
+
+        self.assertEqual(response.status_code, 200, response.text)
+        open_outlook_draft.assert_called_once()
+        self.assertIn("<table>", open_outlook_draft.call_args.args[0].body_html)
 
     def test_render_uploads_are_isolated_by_browser_session(self) -> None:
         with patch.dict("os.environ", {"RENDER": "true"}, clear=True):
@@ -341,8 +385,10 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(payload["tabla"][0]["sesiones"], 1)
         self.assertEqual(payload["tabla"][0]["semestre"], "PERIODO 2016-2")
         self.assertEqual(payload["tabla"][0]["materia"], "SEMINARIO DE PRACTICA")
+        self.assertEqual(payload["tabla"][0]["fechaInicio"], "2023-01-20")
+        self.assertEqual(payload["tabla"][0]["fechaFinal"], "2023-05-30")
         self.assertEqual(payload["tabla"][0]["departamento"], "PROCESOS INDUSTRIALES")
-        self.assertIn("| Semestre | Materia | Sesiones | Departamento |", payload["mensaje"])
+        self.assertIn("| Semestre | Materia | Fecha de inicio | Fecha final | Sesiones | Departamento |", payload["mensaje"])
 
     def test_query_without_cycle_returns_all_cycles(self) -> None:
         self.upload_valid_dataset(

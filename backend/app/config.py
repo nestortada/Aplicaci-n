@@ -31,6 +31,17 @@ def is_render_environment() -> bool:
     return os.getenv("RENDER") == "true"
 
 
+def get_runtime_environment() -> str:
+    explicit_runtime = os.getenv("SABANA_RUNTIME", "").strip().lower()
+    if explicit_runtime in {"local", "desktop", "cloud"}:
+        return explicit_runtime
+    if is_render_environment() or is_vercel_environment():
+        return "cloud"
+    if is_frozen_app():
+        return "desktop"
+    return "local"
+
+
 def get_database_path() -> Path:
     if is_vercel_environment():
         raw_path = os.getenv("DATABASE_PATH")

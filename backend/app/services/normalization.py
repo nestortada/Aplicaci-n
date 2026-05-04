@@ -11,6 +11,8 @@ REQUIRED_COLUMNS: dict[str, str] = {
     "dia": "Día",
     "hora_inicio": "Hora Inicio",
     "hora_final": "Hora Final",
+    "fecha_inicio": "F Inicial",
+    "fecha_final": "Fecha Final",
     "instalacion_id": "ID Instalación",
     "instalacion_descripcion": "ID Instalación descripción",
     "id_profesor": "Id profesor",
@@ -18,6 +20,7 @@ REQUIRED_COLUMNS: dict[str, str] = {
     "nombre_profesor": "Nombre profesor",
     "departamento": "Departamento",
     "descripcion_materia": "Descripción Materia",
+    "total_inscritos": "Total Inscritos",
     "id_seccion_combinada": "ID Sección Combinada",
 }
 

@@ -24,30 +24,35 @@ class ReportService:
     def build_professor_sessions_report(self, request: ReportRequest) -> ReportResponse:
         document = clean_filter(request.numero_documento_docente)
         professor_id = clean_filter(request.id_profesor)
+        professor_name_filter = clean_filter(request.nombre_profesor)
         ciclo_lectivo = clean_filter(request.ciclo_lectivo)
         ciclo_lectivo_inicio = clean_filter(request.ciclo_lectivo_inicio)
         ciclo_lectivo_final = clean_filter(request.ciclo_lectivo_final)
         nombre_curso = request.nombre_curso or ["TODOS"]
         componente = request.componente or ["TODOS"]
+        departamento = request.departamento or ["TODOS"]
         nombre_curso_label = format_filter_values(nombre_curso)
         componente_label = format_filter_values(componente)
+        departamento_label = format_filter_values(departamento)
         received_filters = {
             "numeroDocumentoDocente": document,
             "idProfesor": professor_id,
+            "nombreProfesor": professor_name_filter,
             "cicloLectivo": ciclo_lectivo,
             "cicloLectivoInicio": ciclo_lectivo_inicio,
             "cicloLectivoFinal": ciclo_lectivo_final,
             "nombreCurso": nombre_curso_label,
             "componente": componente_label,
+            "departamento": departamento_label,
             "visualizarComponente": request.visualizar_componente,
         }
         database_metadata = self.repository.get_upload_metadata()
 
-        if not document and not professor_id:
+        if not document and not professor_id and not professor_name_filter:
             raise AppError(
                 400,
                 "profesor_requerido",
-                "Debe enviar Numero documento docente o Id profesor.",
+                "Debe enviar Numero documento docente, Id profesor o Nombre del Profesor.",
                 {
                     "parametrosRecibidos": received_filters,
                     "baseDatos": database_metadata,
@@ -89,7 +94,7 @@ class ReportService:
             )
 
         all_rows = self.repository.get_rows()
-        professor_rows = filter_by_professor(all_rows, document, professor_id)
+        professor_rows = filter_by_professor(all_rows, document, professor_id, professor_name_filter)
         if not professor_rows:
             raise AppError(
                 404,
@@ -98,7 +103,7 @@ class ReportService:
                 {
                     "parametrosRecibidos": received_filters,
                     "baseDatos": database_metadata,
-                    "sugerencia": "Revise el numero de documento o el Id profesor contra la base cargada.",
+                    "sugerencia": "Revise el numero de documento, el Id profesor o el nombre contra la base cargada.",
                 },
             )
 
@@ -121,7 +126,7 @@ class ReportService:
                 },
             )
 
-        filtered_rows = apply_optional_filters(cycle_rows, nombre_curso, componente)
+        filtered_rows = apply_optional_filters(cycle_rows, nombre_curso, componente, departamento)
         if not filtered_rows:
             raise AppError(
                 404,
@@ -130,7 +135,7 @@ class ReportService:
                 {
                     "parametrosRecibidos": received_filters,
                     "baseDatos": database_metadata,
-                    "sugerencia": "Pruebe con nombreCurso='TODOS' o componente='TODOS'.",
+                    "sugerencia": "Pruebe con nombreCurso='TODOS', componente='TODOS' o departamento='TODOS'.",
                 },
             )
 
@@ -167,11 +172,13 @@ class ReportService:
         filters = AppliedFilters(
             numeroDocumentoDocente=document,
             idProfesor=professor_id,
+            nombreProfesor=professor_name_filter,
             cicloLectivo=ciclo_lectivo,
             cicloLectivoInicio=ciclo_lectivo_inicio,
             cicloLectivoFinal=ciclo_lectivo_final,
             nombreCurso=nombre_curso_label,
             componente=componente_label,
+            departamento=departamento_label,
             visualizarComponente=request.visualizar_componente,
         )
         return ReportResponse(

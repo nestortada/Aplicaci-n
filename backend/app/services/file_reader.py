@@ -74,7 +74,7 @@ def _parse_xlsx(content: bytes) -> ParsedDataset:
     rows: list[dict[str, str | int]] = []
     for source_row, values in enumerate(rows_iterator, start=2):
         row = normalize_row(values, column_index, source_row)
-        if not is_empty_data_row(row):
+        if not is_empty_data_row(row) and not _has_excluded_enrollment(row):
             rows.append(row)
     return ParsedDataset(rows=rows, detected_columns=detected_columns)
 
@@ -106,7 +106,7 @@ def _parse_csv(content: bytes) -> ParsedDataset:
     rows: list[dict[str, str | int]] = []
     for source_row, values in enumerate(reader, start=2):
         row = normalize_row(values, column_index, source_row)
-        if not is_empty_data_row(row):
+        if not is_empty_data_row(row) and not _has_excluded_enrollment(row):
             rows.append(row)
     return ParsedDataset(rows=rows, detected_columns=detected_columns)
 
@@ -131,3 +131,13 @@ def _raise_missing_columns_if_needed(missing: list[str]) -> None:
                 "sugerencia": "Revise que los encabezados coincidan con la plantilla esperada.",
             },
         )
+
+
+def _has_excluded_enrollment(row: dict[str, str | int]) -> bool:
+    value = str(row.get("total_inscritos", "")).strip().replace(",", ".")
+    if not value:
+        return False
+    try:
+        return int(float(value)) in {0, -1}
+    except ValueError:
+        return False

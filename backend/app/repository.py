@@ -16,6 +16,8 @@ ROW_COLUMNS = [
     "dia",
     "hora_inicio",
     "hora_final",
+    "fecha_inicio",
+    "fecha_final",
     "instalacion_id",
     "instalacion_descripcion",
     "id_profesor",
@@ -23,6 +25,7 @@ ROW_COLUMNS = [
     "nombre_profesor",
     "departamento",
     "descripcion_materia",
+    "total_inscritos",
     "id_seccion_combinada",
 ]
 
@@ -45,6 +48,8 @@ class DatasetRepository:
                     dia TEXT NOT NULL,
                     hora_inicio TEXT NOT NULL,
                     hora_final TEXT NOT NULL,
+                    fecha_inicio TEXT NOT NULL DEFAULT '',
+                    fecha_final TEXT NOT NULL DEFAULT '',
                     instalacion_id TEXT NOT NULL DEFAULT '',
                     instalacion_descripcion TEXT NOT NULL,
                     id_profesor TEXT NOT NULL,
@@ -52,12 +57,16 @@ class DatasetRepository:
                     nombre_profesor TEXT NOT NULL,
                     departamento TEXT NOT NULL,
                     descripcion_materia TEXT NOT NULL DEFAULT '',
+                    total_inscritos TEXT NOT NULL DEFAULT '',
                     id_seccion_combinada TEXT NOT NULL
                 )
                 """
             )
+            self._ensure_column(connection, "academic_rows", "fecha_inicio", "TEXT NOT NULL DEFAULT ''")
+            self._ensure_column(connection, "academic_rows", "fecha_final", "TEXT NOT NULL DEFAULT ''")
             self._ensure_column(connection, "academic_rows", "instalacion_id", "TEXT NOT NULL DEFAULT ''")
             self._ensure_column(connection, "academic_rows", "descripcion_materia", "TEXT NOT NULL DEFAULT ''")
+            self._ensure_column(connection, "academic_rows", "total_inscritos", "TEXT NOT NULL DEFAULT ''")
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS upload_metadata (
@@ -77,7 +86,7 @@ class DatasetRepository:
             connection.commit()
 
     def replace_rows(self, rows: Iterable[dict[str, Any]], filename: str) -> int:
-        rows_list = list(rows)
+        rows_list = [row for row in rows if _has_allowed_enrollment(row)]
         placeholders = ", ".join(["?"] * len(ROW_COLUMNS))
         columns = ", ".join(ROW_COLUMNS)
         values = [
@@ -140,6 +149,8 @@ class DatasetRepository:
                     dia,
                     hora_inicio,
                     hora_final,
+                    fecha_inicio,
+                    fecha_final,
                     instalacion_id,
                     instalacion_descripcion,
                     id_profesor,
@@ -147,12 +158,13 @@ class DatasetRepository:
                     nombre_profesor,
                     departamento,
                     descripcion_materia,
+                    total_inscritos,
                     id_seccion_combinada
                 FROM academic_rows
                 ORDER BY id ASC
                 """
             ).fetchall()
-        return [dict(row) for row in rows]
+        return [row_dict for row in rows if _has_allowed_enrollment(row_dict := dict(row))]
 
     def clear(self) -> None:
         with self._connect() as connection:
@@ -181,7 +193,7 @@ class InMemoryDatasetRepository:
         return None
 
     def replace_rows(self, rows: Iterable[dict[str, Any]], filename: str) -> int:
-        rows_list = [self._normalize_row(row) for row in rows]
+        rows_list = [self._normalize_row(row) for row in rows if _has_allowed_enrollment(row)]
         with self._lock:
             self._rows = rows_list
             self._metadata = {
@@ -220,3 +232,13 @@ class InMemoryDatasetRepository:
             column: int(row.get(column, 0)) if column == "source_row" else str(row.get(column, ""))
             for column in ROW_COLUMNS
         }
+
+
+def _has_allowed_enrollment(row: dict[str, Any]) -> bool:
+    value = str(row.get("total_inscritos", "")).strip().replace(",", ".")
+    if not value:
+        return True
+    try:
+        return int(float(value)) not in {0, -1}
+    except ValueError:
+        return True

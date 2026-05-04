@@ -30,8 +30,10 @@ export function isCycleBefore(left: string, right: string): boolean {
 
 export function buildTableText(rows: ReportTableRow[]): string {
   return [
-    ["SEMESTRE", "MATERIA", "SESIONES", "DEPARTAMENTO"].join("\t"),
-    ...rows.map((row) => [row.semestre, row.materia, String(row.sesiones), row.departamento].join("\t")),
+    ["SEMESTRE", "MATERIA", "FECHA DE INICIO", "FECHA FINAL", "SESIONES", "DEPARTAMENTO"].join("\t"),
+    ...rows.map((row) =>
+      [row.semestre, row.materia, row.fechaInicio, row.fechaFinal, String(row.sesiones), row.departamento].join("\t"),
+    ),
   ].join("\n");
 }
 
@@ -73,7 +75,7 @@ export function buildTableHtml(rows: ReportTableRow[]): string {
     "background-color:#ffffff",
   ].join(";");
   const numberCellStyle = `${cellStyle};text-align:right`;
-  const header = ["SEMESTRE", "MATERIA", "SESIONES", "DEPARTAMENTO"]
+  const header = ["SEMESTRE", "MATERIA", "FECHA DE INICIO", "FECHA FINAL", "SESIONES", "DEPARTAMENTO"]
     .map((column) => `<th style="${headerStyle}" scope="col">${escapeHtml(column)}</th>`)
     .join("");
   const body = rows
@@ -81,9 +83,11 @@ export function buildTableHtml(rows: ReportTableRow[]): string {
       (row) =>
         `<tr><td style="${cellStyle}">${escapeHtml(row.semestre)}</td><td style="${cellStyle}">${escapeHtml(
           row.materia,
-        )}</td><td style="${numberCellStyle}">${escapeHtml(
-          String(row.sesiones),
-        )}</td><td style="${cellStyle}">${escapeHtml(row.departamento)}</td></tr>`,
+        )}</td><td style="${cellStyle}">${escapeHtml(row.fechaInicio)}</td><td style="${cellStyle}">${escapeHtml(
+          row.fechaFinal,
+        )}</td><td style="${numberCellStyle}">${escapeHtml(String(row.sesiones))}</td><td style="${cellStyle}">${escapeHtml(
+          row.departamento,
+        )}</td></tr>`,
     )
     .join("");
   return `<table border="1" cellpadding="0" cellspacing="0" style="${tableStyle}"><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table>`;

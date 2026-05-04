@@ -7,10 +7,21 @@ import {
   getCiclos,
   getComponentes,
   getCurrentDatabase,
+  getDepartamentos,
   getMaterias,
+  getProfesores,
+  getRuntime,
+  openOutlookDraft,
   uploadDatabase,
 } from "./services/api";
-import type { DatasetMetadata, FilterOption, FilterParams, IdentificationType, ReportResponse } from "./types";
+import type {
+  DatasetMetadata,
+  FilterOption,
+  FilterParams,
+  IdentificationType,
+  ReportResponse,
+  RuntimeEnvironment,
+} from "./types";
 import { copyRichText } from "./utils/clipboard";
 import {
   buildMessageHtml,
@@ -25,25 +36,34 @@ const ALL_OPTION: FilterOption = { valor: "TODOS", etiqueta: "Todos" };
 const EMPTY_CYCLE_OPTION: FilterOption = { valor: "", etiqueta: "Todos los periodos" };
 const EMPTY_DATABASE: DatasetMetadata = { activa: false, archivo: "", fechaCarga: "", filasCargadas: 0 };
 const INSTALLER_URL = import.meta.env.VITE_INSTALLER_URL || "/downloads/SabanaCertificado.exe";
+const EMAIL_TO = "solicitud.certifica@unisabana.edu.co";
+const EMAIL_CC = ["dianarc@unisabana.edu.co", "alvarorodu@unisabana.edu.co"];
 
 export default function App() {
   const [database, setDatabase] = useState<DatasetMetadata | null>(null);
   const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "success" | "error">("idle");
   const [uploadError, setUploadError] = useState("");
-  const [identificationType, setIdentificationType] = useState<IdentificationType>("id");
+  const [identificationType, setIdentificationType] = useState<IdentificationType>("professorName");
   const [identification, setIdentification] = useState("");
   const [cicloInicio, setCicloInicio] = useState("");
   const [cicloFin, setCicloFin] = useState("");
   const [materia, setMateria] = useState<string[]>([ALL_OPTION.valor]);
   const [componente, setComponente] = useState<string[]>([ALL_OPTION.valor]);
+  const [departamento, setDepartamento] = useState<string[]>([ALL_OPTION.valor]);
   const [visualizarComponente, setVisualizarComponente] = useState(false);
   const [ciclos, setCiclos] = useState<FilterOption[]>([]);
   const [materias, setMaterias] = useState<FilterOption[]>([ALL_OPTION]);
   const [componentes, setComponentes] = useState<FilterOption[]>([ALL_OPTION]);
+  const [departamentos, setDepartamentos] = useState<FilterOption[]>([ALL_OPTION]);
+  const [profesores, setProfesores] = useState<FilterOption[]>([]);
+  const [selectedProfessor, setSelectedProfessor] = useState("");
+  const [showProfessorDropdown, setShowProfessorDropdown] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [result, setResult] = useState<ReportResponse | null>(null);
   const [formError, setFormError] = useState("");
   const [toast, setToast] = useState("");
+  const [runtime, setRuntime] = useState<RuntimeEnvironment | "loading">("loading");
   const [controlPanelWidth, setControlPanelWidth] = useState(() => {
     const savedWidth = Number(window.localStorage.getItem("sabana-control-panel-width"));
     return Number.isFinite(savedWidth) && savedWidth >= 26 && savedWidth <= 55 ? savedWidth : 33;
@@ -52,8 +72,11 @@ export default function App() {
   const gridRef = useRef<HTMLDivElement>(null);
 
   const activeDatabase = Boolean(database?.activa);
+  const showInstallerDownload = runtime !== "loading" && runtime !== "desktop";
+  const showSendEmail = runtime === "local" || runtime === "desktop";
   const ciclosInicio = useMemo(() => [EMPTY_CYCLE_OPTION, ...ciclos], [ciclos]);
   const materiaKey = materia.join("\u001f");
+  const componenteKey = componente.join("\u001f");
 
   const ciclosFin = useMemo(() => {
     if (!cicloInicio) {
@@ -64,6 +87,18 @@ export default function App() {
 
   useEffect(() => {
     let isMounted = true;
+
+    getRuntime()
+      .then((metadata) => {
+        if (isMounted) {
+          setRuntime(metadata.runtime);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setRuntime(inferRuntimeFromLocation());
+        }
+      });
 
     getCurrentDatabase()
       .then((metadata) => {
@@ -152,7 +187,7 @@ export default function App() {
   }, [controlPanelWidth]);
 
   useEffect(() => {
-    if (!activeDatabase || !identification.trim()) {
+    if (!activeDatabase || !selectedProfessor.trim()) {
       setMaterias([ALL_OPTION]);
       setMateria([ALL_OPTION.valor]);
       return;
@@ -177,10 +212,10 @@ export default function App() {
     return () => {
       isCurrent = false;
     };
-  }, [activeDatabase, identification, identificationType, cicloInicio, cicloFin]);
+  }, [activeDatabase, selectedProfessor, identificationType, cicloInicio, cicloFin]);
 
   useEffect(() => {
-    if (!activeDatabase || !identification.trim()) {
+    if (!activeDatabase || !selectedProfessor.trim()) {
       setComponentes([ALL_OPTION]);
       setComponente([ALL_OPTION.valor]);
       return;
@@ -205,7 +240,35 @@ export default function App() {
     return () => {
       isCurrent = false;
     };
-  }, [activeDatabase, identification, identificationType, cicloInicio, cicloFin, materiaKey]);
+  }, [activeDatabase, selectedProfessor, identificationType, cicloInicio, cicloFin, materiaKey]);
+
+  useEffect(() => {
+    if (!activeDatabase || !selectedProfessor.trim()) {
+      setDepartamentos([ALL_OPTION]);
+      setDepartamento([ALL_OPTION.valor]);
+      return;
+    }
+
+    let isCurrent = true;
+    getDepartamentos({ ...buildFilterParams(), nombreCurso: materia, componente })
+      .then((response) => {
+        if (!isCurrent) {
+          return;
+        }
+        const nextOptions = withTodos(response.opciones);
+        setDepartamentos(nextOptions);
+        setDepartamento((current) => keepAvailableSelections(nextOptions, current));
+      })
+      .catch((error) => {
+        if (isCurrent) {
+          setFormError(error instanceof Error ? error.message : "No fue posible cargar los departamentos.");
+        }
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [activeDatabase, selectedProfessor, identificationType, cicloInicio, cicloFin, materiaKey, componenteKey]);
 
   const handleCopyTable = useCallback(async () => {
     if (!result) {
@@ -291,7 +354,10 @@ export default function App() {
     setFormError("");
     setUploadError("");
 
-    const cleanIdentification = identification.trim();
+    const cleanIdentification = identificationType === "document" 
+      ? identification.trim() 
+      : selectedProfessor;
+    
     if (!activeDatabase) {
       setFormError("Primero carga una base de datos.");
       setResult(null);
@@ -307,11 +373,13 @@ export default function App() {
     try {
       const report = await generateReporte({
         numeroDocumentoDocente: identificationType === "document" ? cleanIdentification : "",
-        idProfesor: identificationType === "id" ? cleanIdentification : "",
+        idProfesor: "",
+        nombreProfesor: identificationType === "professorName" ? cleanIdentification : "",
         cicloLectivoInicio: cicloInicio,
         cicloLectivoFinal: cicloFin,
         nombreCurso: materia,
         componente,
+        departamento,
         visualizarComponente,
       });
       setResult(report);
@@ -325,20 +393,29 @@ export default function App() {
 
   function resetFilters() {
     setIdentification("");
+    setSelectedProfessor("");
+    setShowProfessorDropdown(false);
     setCicloInicio("");
     setCicloFin("");
     setMateria([ALL_OPTION.valor]);
     setComponente([ALL_OPTION.valor]);
+    setDepartamento([ALL_OPTION.valor]);
     setMaterias([ALL_OPTION]);
     setComponentes([ALL_OPTION]);
+    setDepartamentos([ALL_OPTION]);
+    setProfesores([]);
     setVisualizarComponente(false);
   }
 
   function buildFilterParams(): FilterParams {
-    const cleanIdentification = identification.trim();
+    const cleanIdentification = identificationType === "document" 
+      ? identification.trim() 
+      : selectedProfessor;
+    
     return {
       numeroDocumentoDocente: identificationType === "document" ? cleanIdentification : "",
-      idProfesor: identificationType === "id" ? cleanIdentification : "",
+      idProfesor: "",
+      nombreProfesor: identificationType === "professorName" ? cleanIdentification : "",
       cicloLectivoInicio: cicloInicio,
       cicloLectivoFinal: cicloFin,
     };
@@ -347,6 +424,43 @@ export default function App() {
   function showToast(message: string) {
     setToast(message);
     window.setTimeout(() => setToast(""), 2200);
+  }
+
+  async function handleVerifyProfessor() {
+    const cleanIdentification = identification.trim();
+    
+    if (!activeDatabase) {
+      setFormError("Primero carga una base de datos.");
+      setProfesores([]);
+      return;
+    }
+
+    if (!cleanIdentification) {
+      setFormError("Ingresa un nombre de profesor.");
+      setProfesores([]);
+      return;
+    }
+
+    setFormError("");
+    try {
+      const response = await getProfesores(cleanIdentification);
+      setProfesores(response.opciones);
+      setShowProfessorDropdown(true);
+      if (response.opciones.length === 0) {
+        setFormError("No se encontraron nombres similares.");
+      }
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "No fue posible buscar nombres.");
+      setProfesores([]);
+      setShowProfessorDropdown(false);
+    }
+  }
+
+  function handleSelectProfessor(professorName: string) {
+    setSelectedProfessor(professorName);
+    setIdentification(professorName);
+    setShowProfessorDropdown(false);
+    setFormError("");
   }
 
   async function handleInstallerDownload(event: MouseEvent<HTMLAnchorElement>) {
@@ -378,16 +492,50 @@ export default function App() {
     showToast("El instalador aún no está disponible. Genera el .exe primero.");
   }
 
+  async function handleSendEmail() {
+    if (!result || isSendingEmail) {
+      return;
+    }
+
+    const subject = `Solicitud Información - ${result.profesor}`;
+    const bodyText = result.mensaje?.trim() || buildMessageText(result);
+    setIsSendingEmail(true);
+    try {
+      await openOutlookDraft({
+        to: EMAIL_TO,
+        cc: EMAIL_CC,
+        subject,
+        bodyHtml: buildMessageHtml(result),
+        bodyText,
+      });
+      showToast("Borrador abierto en Outlook");
+    } catch (error) {
+      window.open(buildMailtoUrl(EMAIL_TO, EMAIL_CC, subject, bodyText), "_self");
+      showToast(
+        error instanceof Error ? "Outlook directo no disponible; se abrió correo sin formato." : "Abriendo Outlook...",
+      );
+    } finally {
+      setIsSendingEmail(false);
+    }
+  }
+
   return (
     <div className="app-shell">
       <header className="app-header">
         <h1>Sabana Certificado</h1>
-        <a className="installer-download" href={INSTALLER_URL} download="SabanaCertificado.exe" onClick={handleInstallerDownload}>
-          <span className="material-symbols-outlined" aria-hidden="true">
-            download
-          </span>
-          Descargar Aplicación
-        </a>
+        {showInstallerDownload ? (
+          <a
+            className="installer-download"
+            href={INSTALLER_URL}
+            download="SabanaCertificado.exe"
+            onClick={handleInstallerDownload}
+          >
+            <span className="material-symbols-outlined" aria-hidden="true">
+              download
+            </span>
+            Descargar Aplicación
+          </a>
+        ) : null}
       </header>
 
       <main className="app-main">
@@ -406,11 +554,14 @@ export default function App() {
             cicloFin={cicloFin}
             materia={materia}
             componente={componente}
+            departamento={departamento}
             visualizarComponente={visualizarComponente}
             ciclosInicio={ciclosInicio}
             ciclosFin={ciclosFin}
             materias={materias}
             componentes={componentes}
+            departamentos={departamentos}
+            profesores={profesores}
             isSearching={isSearching}
             formError={formError}
             onFileSelected={handleFileSelected}
@@ -421,9 +572,13 @@ export default function App() {
             onCicloFinChange={setCicloFin}
             onMateriaChange={setMateria}
             onComponenteChange={setComponente}
+            onDepartamentoChange={setDepartamento}
             onVisualizarComponenteChange={setVisualizarComponente}
             onSearch={handleSearch}
             onClearAll={handleClearAll}
+            onVerifyProfessor={handleVerifyProfessor}
+            onSelectProfessor={handleSelectProfessor}
+            showProfessorDropdown={showProfessorDropdown}
           />
 
           <button
@@ -451,8 +606,11 @@ export default function App() {
             error={formError}
             onCopyTable={handleCopyTable}
             onCopyMessage={handleCopyMessage}
+            onSendEmail={handleSendEmail}
             onCopied={showToast}
             onCopyError={setFormError}
+            showSendEmail={showSendEmail}
+            isSendingEmail={isSendingEmail}
           />
         </div>
       </main>
@@ -477,4 +635,20 @@ function keepAvailableSelections(options: FilterOption[], values: string[]): str
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
+}
+
+function inferRuntimeFromLocation(): RuntimeEnvironment {
+  const hostname = window.location.hostname.toLowerCase();
+  if (hostname === "localhost" || hostname === "127.0.0.1") {
+    return "local";
+  }
+  return "cloud";
+}
+
+function buildMailtoUrl(to: string, cc: string[], subject: string, body: string): string {
+  return `mailto:${to}?cc=${encodeMailtoValue(cc.join(","))}&subject=${encodeMailtoValue(subject)}&body=${encodeMailtoValue(body)}`;
+}
+
+function encodeMailtoValue(value: string): string {
+  return encodeURIComponent(value).replace(/[!'()*]/g, (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`);
 }

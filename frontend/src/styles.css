@@ -414,6 +414,81 @@ button:disabled {
   padding-inline: 8px;
 }
 
+.professor-search {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.professor-verify-button {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  min-width: 32px;
+  min-height: 32px;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  color: var(--accent);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.professor-verify-button:hover {
+  background: rgba(2, 132, 199, 0.1);
+}
+
+.professor-verify-button:active {
+  background: rgba(2, 132, 199, 0.2);
+}
+
+.professor-verify-button:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.professor-suggestions {
+  position: absolute;
+  z-index: 25;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  display: grid;
+  gap: 4px;
+  max-height: 190px;
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: var(--radius-control);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.16);
+}
+
+.professor-suggestion {
+  min-height: 28px;
+  padding: 5px 7px;
+  color: #334155;
+  font-size: 12px;
+  line-height: 1.25;
+  text-align: left;
+  overflow-wrap: anywhere;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.professor-suggestion:hover,
+.professor-suggestion:focus {
+  background: var(--surface-muted);
+  outline: none;
+}
+
 .cycle-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -426,6 +501,7 @@ button:disabled {
 }
 
 .upload-zone {
+  position: relative;
   display: flex;
   flex: 1;
   min-height: 52px;
@@ -450,6 +526,18 @@ button:disabled {
   border-color: var(--success);
   box-shadow: 0 8px 18px rgba(5, 150, 105, 0.12);
   transform: translateY(-1px);
+}
+
+.upload-zone--uploading {
+  cursor: progress;
+  background: #ecfdf5;
+  border-color: var(--success);
+  border-style: solid;
+  box-shadow: 0 10px 22px rgba(5, 150, 105, 0.14);
+}
+
+.upload-zone--uploading:hover {
+  transform: none;
 }
 
 .upload-zone--loaded {
@@ -481,6 +569,34 @@ button:disabled {
 .upload-zone__text span {
   color: var(--muted);
   font-size: 11px;
+}
+
+.upload-zone__progress {
+  position: absolute;
+  right: 12px;
+  bottom: 5px;
+  left: 12px;
+  height: 3px;
+  overflow: hidden;
+  background: rgba(5, 150, 105, 0.14);
+  border-radius: 999px;
+}
+
+.upload-zone__progress::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -40%;
+  width: 40%;
+  content: "";
+  background: linear-gradient(
+    90deg,
+    rgba(5, 150, 105, 0),
+    #059669,
+    rgba(5, 150, 105, 0)
+  );
+  border-radius: inherit;
+  animation: progressSweep 900ms ease-in-out infinite;
 }
 
 .icon-button {
@@ -924,6 +1040,26 @@ button:disabled {
   box-shadow: none;
 }
 
+.send-email-button {
+  color: #047857;
+  background: #d1fae5;
+  box-shadow: 0 10px 24px rgba(5, 150, 105, 0.16);
+}
+
+.send-email-button:hover:not(:disabled) {
+  color: #065f46;
+  background: #a7f3d0;
+  box-shadow: 0 14px 30px rgba(5, 150, 105, 0.22);
+}
+
+.copy-button--loading {
+  cursor: progress;
+}
+
+.copy-button--loading:disabled {
+  cursor: progress;
+}
+
 .copy-button .material-symbols-outlined {
   font-size: 16px;
   transition: transform var(--transition);
@@ -937,6 +1073,7 @@ button:disabled {
   display: flex;
   flex: 0 0 auto;
   justify-content: center;
+  gap: 12px;
   padding-top: 0;
 }
 
@@ -962,6 +1099,12 @@ button:disabled {
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes progressSweep {
+  to {
+    left: 100%;
   }
 }
 

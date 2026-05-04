@@ -1,4 +1,17 @@
-export type IdentificationType = "id" | "document";
+export type IdentificationType = "professorName" | "document";
+export type RuntimeEnvironment = "local" | "desktop" | "cloud";
+
+export interface RuntimeMetadata {
+  runtime: RuntimeEnvironment;
+}
+
+export interface OutlookDraftRequest {
+  to: string;
+  cc: string[];
+  subject: string;
+  bodyHtml: string;
+  bodyText: string;
+}
 
 export interface DatasetMetadata {
   activa: boolean;
@@ -27,6 +40,8 @@ export interface FilterOptionsResponse {
 export interface ReportTableRow {
   semestre: string;
   materia: string;
+  fechaInicio: string;
+  fechaFinal: string;
   sesiones: number;
   departamento: string;
 }
@@ -34,11 +49,13 @@ export interface ReportTableRow {
 export interface AppliedFilters {
   numeroDocumentoDocente: string;
   idProfesor: string;
+  nombreProfesor: string;
   cicloLectivo: string;
   cicloLectivoInicio: string;
   cicloLectivoFinal: string;
   nombreCurso: string | string[];
   componente: string | string[];
+  departamento: string | string[];
   visualizarComponente: boolean;
 }
 
@@ -53,19 +70,24 @@ export interface ReportResponse {
 export interface ReportRequest {
   numeroDocumentoDocente: string;
   idProfesor: string;
+  nombreProfesor: string;
   cicloLectivoInicio: string;
   cicloLectivoFinal: string;
   nombreCurso: string[];
   componente: string[];
+  departamento: string[];
   visualizarComponente: boolean;
 }
 
 export interface FilterParams {
+  query?: string;
   numeroDocumentoDocente?: string;
   idProfesor?: string;
+  nombreProfesor?: string;
   cicloLectivoInicio?: string;
   cicloLectivoFinal?: string;
   nombreCurso?: string | string[];
+  componente?: string | string[];
 }
 
 export interface ApiErrorDetail {

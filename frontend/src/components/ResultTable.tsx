@@ -12,6 +12,8 @@ export function ResultTable({ rows }: ResultTableProps) {
           <tr>
             <th>Semestre</th>
             <th>Materia</th>
+            <th>Fecha de inicio</th>
+            <th>Fecha final</th>
             <th>Sesiones</th>
             <th>Departamento</th>
           </tr>
@@ -21,6 +23,8 @@ export function ResultTable({ rows }: ResultTableProps) {
             <tr key={`${row.semestre}-${row.materia}-${row.departamento}-${index}`}>
               <td>{row.semestre}</td>
               <td>{row.materia}</td>
+              <td>{row.fechaInicio}</td>
+              <td>{row.fechaFinal}</td>
               <td>{row.sesiones}</td>
               <td>{row.departamento}</td>
             </tr>

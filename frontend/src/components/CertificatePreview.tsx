@@ -8,8 +8,11 @@ interface CertificatePreviewProps {
   error: string;
   onCopyTable: () => Promise<void>;
   onCopyMessage: () => Promise<void>;
+  onSendEmail: () => void | Promise<void>;
   onCopied: (message: string) => void;
   onCopyError: (message: string) => void;
+  showSendEmail: boolean;
+  isSendingEmail: boolean;
 }
 
 export function CertificatePreview({
@@ -18,8 +21,11 @@ export function CertificatePreview({
   error,
   onCopyTable,
   onCopyMessage,
+  onSendEmail,
   onCopied,
   onCopyError,
+  showSendEmail,
+  isSendingEmail,
 }: CertificatePreviewProps) {
   const professorName = result?.profesor || "[PROFESOR]";
   const hasRows = Boolean(result?.tabla.length);
@@ -103,6 +109,26 @@ export function CertificatePreview({
           onCopied={onCopied}
           onError={onCopyError}
         />
+        {showSendEmail ? (
+          <button
+            className={`copy-button copy-button--floating send-email-button ${
+              isSendingEmail ? "copy-button--loading" : ""
+            }`}
+            type="button"
+            disabled={!hasRows || isSendingEmail}
+            onClick={onSendEmail}
+            title="Enviar por Outlook"
+            aria-busy={isSendingEmail}
+          >
+            <span
+              className={`material-symbols-outlined ${isSendingEmail ? "spinning" : ""}`}
+              aria-hidden="true"
+            >
+              {isSendingEmail ? "progress_activity" : "send"}
+            </span>
+            <span>{isSendingEmail ? "Enviando" : "Enviar"}</span>
+          </button>
+        ) : null}
       </div>
     </section>
   );
