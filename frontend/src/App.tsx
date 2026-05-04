@@ -32,6 +32,7 @@ import {
   isAcceptedDatabaseFile,
   isCycleBefore,
 } from "./utils/format";
+import { multiplyReportSessions } from "./utils/report";
 
 const ALL_OPTION: FilterOption = { valor: "TODOS", etiqueta: "Todos" };
 const EMPTY_CYCLE_OPTION: FilterOption = { valor: "", etiqueta: "Todos los periodos" };
@@ -385,17 +386,19 @@ export default function App() {
     setResult(null);
     setOrderedTableRows([]);
     try {
-      const report = await generateReporte({
-        numeroDocumentoDocente: identificationType === "document" ? cleanIdentification : "",
-        idProfesor: "",
-        nombreProfesor: identificationType === "professorName" ? cleanIdentification : "",
-        cicloLectivoInicio: cicloInicio,
-        cicloLectivoFinal: cicloFin,
-        nombreCurso: materia,
-        componente,
-        departamento,
-        visualizarComponente,
-      });
+      const report = multiplyReportSessions(
+        await generateReporte({
+          numeroDocumentoDocente: identificationType === "document" ? cleanIdentification : "",
+          idProfesor: "",
+          nombreProfesor: identificationType === "professorName" ? cleanIdentification : "",
+          cicloLectivoInicio: cicloInicio,
+          cicloLectivoFinal: cicloFin,
+          nombreCurso: materia,
+          componente,
+          departamento,
+          visualizarComponente,
+        }),
+      );
       setResult(report);
       setOrderedTableRows(report.tabla);
     } catch (error) {

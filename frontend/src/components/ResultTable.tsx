@@ -5,13 +5,18 @@ interface ResultTableProps {
   rows: ReportTableRow[];
   title?: string;
   onRowsChange?: (rows: ReportTableRow[]) => void;
+  activeCellFilters?: Partial<Record<FilterableColumnKey, string>>;
+  filterableColumns?: FilterableColumnKey[];
+  onCellFilter?: (key: FilterableColumnKey, value: string) => void;
+  showComponentColumn?: boolean;
 }
 
-type SortKey = "semestre" | "materia" | "fechaInicio" | "fechaFinal" | "sesiones" | "departamento";
+type SortKey = "semestre" | "materia" | "componente" | "fechaInicio" | "fechaFinal" | "sesiones" | "departamento";
 type SortDirection = "asc" | "desc";
+export type FilterableColumnKey = "semestre" | "materia" | "componente" | "departamento";
 
 const collator = new Intl.Collator("es", { numeric: true, sensitivity: "base" });
-const sortableColumns: Array<{ key: SortKey; label: string; numeric?: boolean }> = [
+const baseColumns: Array<{ key: SortKey; label: string; numeric?: boolean }> = [
   { key: "semestre", label: "Semestre" },
   { key: "materia", label: "Materia" },
   { key: "fechaInicio", label: "Fecha de inicio" },
@@ -20,11 +25,30 @@ const sortableColumns: Array<{ key: SortKey; label: string; numeric?: boolean }>
   { key: "departamento", label: "Departamento" },
 ];
 
-export function ResultTable({ rows, title = "Resultados", onRowsChange }: ResultTableProps) {
+export function ResultTable({
+  rows,
+  title = "Resultados",
+  onRowsChange,
+  activeCellFilters = {},
+  filterableColumns = [],
+  onCellFilter,
+  showComponentColumn = false,
+}: ResultTableProps) {
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({
     key: "semestre",
     direction: "asc",
   });
+  const columns = useMemo(() => {
+    if (!showComponentColumn) {
+      return baseColumns;
+    }
+    return [
+      baseColumns[0],
+      baseColumns[1],
+      { key: "componente" as const, label: "Componente" },
+      ...baseColumns.slice(2),
+    ];
+  }, [showComponentColumn]);
 
   const visibleRows = useMemo(() => {
     return [...rows].sort((left, right) => compareRows(left, right, sort.key, sort.direction));
@@ -41,13 +65,31 @@ export function ResultTable({ rows, title = "Resultados", onRowsChange }: Result
     }));
   }
 
+  function renderCell(row: ReportTableRow, key: SortKey) {
+    const value = String(row[key] ?? "");
+    if (!isFilterableColumn(key) || !filterableColumns.includes(key) || !value) {
+      return value;
+    }
+    const isActive = activeCellFilters[key] === value;
+    return (
+      <button
+        className={`table-cell-filter ${isActive ? "table-cell-filter--active" : ""}`}
+        type="button"
+        onClick={() => onCellFilter?.(key, value)}
+        title={isActive ? `Quitar filtro ${value}` : `Filtrar por ${value}`}
+      >
+        {value}
+      </button>
+    );
+  }
+
   return (
     <div className="result-table-wrap" aria-label={title}>
       <div className="table-shell">
         <table className="result-table">
           <thead>
             <tr>
-              {sortableColumns.map((column) => (
+              {columns.map((column) => (
                 <th key={column.key} aria-sort={sort.key === column.key ? toAriaSort(sort.direction) : undefined}>
                   <button
                     className="table-sort-button"
@@ -72,18 +114,15 @@ export function ResultTable({ rows, title = "Resultados", onRowsChange }: Result
           </thead>
           <tbody>
             {visibleRows.map((row, index) => (
-              <tr key={`${row.semestre}-${row.materia}-${row.departamento}-${index}`}>
-                <td>{row.semestre}</td>
-                <td>{row.materia}</td>
-                <td>{row.fechaInicio}</td>
-                <td>{row.fechaFinal}</td>
-                <td>{row.sesiones}</td>
-                <td>{row.departamento}</td>
+              <tr key={`${row.semestre}-${row.materia}-${row.componente || ""}-${row.departamento}-${index}`}>
+                {columns.map((column) => (
+                  <td key={column.key}>{renderCell(row, column.key)}</td>
+                ))}
               </tr>
             ))}
             {visibleRows.length === 0 ? (
               <tr>
-                <td className="result-table__empty" colSpan={6}>
+                <td className="result-table__empty" colSpan={columns.length}>
                   No hay resultados.
                 </td>
               </tr>
@@ -105,4 +144,8 @@ function compareRows(left: ReportTableRow, right: ReportTableRow, key: SortKey, 
 
 function toAriaSort(direction: SortDirection): "ascending" | "descending" {
   return direction === "asc" ? "ascending" : "descending";
+}
+
+function isFilterableColumn(key: SortKey): key is FilterableColumnKey {
+  return key === "semestre" || key === "materia" || key === "componente" || key === "departamento";
 }

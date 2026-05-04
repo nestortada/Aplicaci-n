@@ -1375,6 +1375,40 @@ button:disabled {
   color: #475569;
 }
 
+.table-cell-filter {
+  display: inline-flex;
+  max-width: 100%;
+  min-height: 24px;
+  align-items: center;
+  padding: 2px 7px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  outline: none;
+  transition:
+    color var(--transition),
+    background-color var(--transition),
+    border-color var(--transition),
+    box-shadow var(--transition);
+}
+
+.table-cell-filter:hover,
+.table-cell-filter:focus-visible {
+  color: var(--accent);
+  background: rgba(224, 242, 254, 0.58);
+  border-color: rgba(2, 132, 199, 0.18);
+}
+
+.table-cell-filter--active {
+  color: #075985;
+  background: rgba(224, 242, 254, 0.78);
+  border-color: rgba(2, 132, 199, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.62);
+}
+
 .result-table tr {
   transition: background-color var(--transition);
 }
@@ -1675,7 +1709,7 @@ button:disabled {
 }
 
 .preview-modal .result-table {
-  min-width: 760px;
+  min-width: 860px;
 }
 
 .preview-modal .result-table th {
@@ -1780,6 +1814,41 @@ button:disabled {
 .metrics-filters {
   display: grid;
   gap: 7px;
+}
+
+.clear-filters-button {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 14px;
+  color: #991b1b;
+  font-size: 12px;
+  font-weight: 750;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.24);
+  border-radius: 999px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.46);
+  transition:
+    background-color var(--transition),
+    border-color var(--transition),
+    color var(--transition),
+    transform var(--transition);
+}
+
+.clear-filters-button:hover:not(:disabled),
+.clear-filters-button:focus-visible:not(:disabled) {
+  color: #7f1d1d;
+  background: rgba(239, 68, 68, 0.16);
+  border-color: rgba(239, 68, 68, 0.38);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.clear-filters-button:disabled {
+  color: rgba(153, 27, 27, 0.42);
+  background: rgba(239, 68, 68, 0.04);
+  border-color: rgba(239, 68, 68, 0.12);
 }
 
 .semester-metrics {

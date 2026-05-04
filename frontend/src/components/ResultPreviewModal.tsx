@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReportMetricRow, ReportResponse } from "../types";
 import { ResultTable } from "./ResultTable";
+import type { FilterableColumnKey } from "./ResultTable";
 
 interface ResultPreviewModalProps {
   result: ReportResponse;
@@ -10,6 +11,7 @@ interface ResultPreviewModalProps {
 const collator = new Intl.Collator("es", { numeric: true, sensitivity: "base" });
 
 export function ResultPreviewModal({ result, onClose }: ResultPreviewModalProps) {
+  const [semestreFilter, setSemestreFilter] = useState("");
   const [materiaFilter, setMateriaFilter] = useState("");
   const [componenteFilter, setComponenteFilter] = useState("");
   const [departamentoFilter, setDepartamentoFilter] = useState("");
@@ -17,6 +19,10 @@ export function ResultPreviewModal({ result, onClose }: ResultPreviewModalProps)
   const metricRowsSource = useMemo(
     () => (result.metricas && result.metricas.length > 0 ? result.metricas : buildFallbackMetricRows(result.tabla)),
     [result.metricas, result.tabla],
+  );
+  const semestreOptions = useMemo(
+    () => uniqueValues(metricRowsSource.map((row) => row.semestre)),
+    [metricRowsSource],
   );
   const materiaOptions = useMemo(() => uniqueValues(metricRowsSource.map((row) => row.materia)), [metricRowsSource]);
   const componenteOptions = useMemo(
@@ -33,31 +39,62 @@ export function ResultPreviewModal({ result, onClose }: ResultPreviewModalProps)
       metricRowsSource.filter(
         (row) =>
           (!materiaFilter || row.materia === materiaFilter) &&
+          (!semestreFilter || row.semestre === semestreFilter) &&
           (!componenteFilter || row.componente === componenteFilter) &&
           (!departamentoFilter || row.departamento === departamentoFilter),
       ),
-    [departamentoFilter, materiaFilter, componenteFilter, metricRowsSource],
+    [departamentoFilter, materiaFilter, componenteFilter, semestreFilter, metricRowsSource],
   );
   const filteredMetricKeys = useMemo(
     () => new Set(metricRows.map((row) => buildMetricKey(row.semestre, row.materia, row.departamento))),
     [metricRows],
   );
+  const componentByMetricKey = useMemo(() => buildSingleComponentMap(metricRowsSource), [metricRowsSource]);
   const tableRows = useMemo(
     () =>
-      result.tabla.filter(
-        (row) =>
-          (!materiaFilter || row.materia === materiaFilter) &&
-          (!componenteFilter ||
-            (row.componente
-              ? row.componente === componenteFilter
-              : filteredMetricKeys.has(buildMetricKey(row.semestre, row.materia, row.departamento)))) &&
-          (!departamentoFilter || row.departamento === departamentoFilter),
-      ),
-    [departamentoFilter, materiaFilter, componenteFilter, filteredMetricKeys, result.tabla],
+      result.tabla
+        .filter(
+          (row) =>
+            (!materiaFilter || row.materia === materiaFilter) &&
+            (!semestreFilter || row.semestre === semestreFilter) &&
+            (!componenteFilter ||
+              (row.componente
+                ? row.componente === componenteFilter
+                : filteredMetricKeys.has(buildMetricKey(row.semestre, row.materia, row.departamento)))) &&
+            (!departamentoFilter || row.departamento === departamentoFilter),
+        )
+        .map((row) => {
+          if (row.componente) {
+            return row;
+          }
+          const metricKey = buildMetricKey(row.semestre, row.materia, row.departamento);
+          const inferredComponent = componenteFilter || componentByMetricKey.get(metricKey) || "";
+          return inferredComponent ? { ...row, componente: inferredComponent } : row;
+        }),
+    [
+      departamentoFilter,
+      materiaFilter,
+      componenteFilter,
+      semestreFilter,
+      filteredMetricKeys,
+      componentByMetricKey,
+      result.tabla,
+    ],
   );
 
   const totalSessions = useMemo(() => sumSessions(metricRows), [metricRows]);
   const sessionsBySemester = useMemo(() => buildSemesterMetrics(metricRows), [metricRows]);
+  const hasComponentValues = useMemo(() => tableRows.some((row) => Boolean(row.componente)), [tableRows]);
+  const hasActiveFilters = Boolean(semestreFilter || materiaFilter || componenteFilter || departamentoFilter);
+  const activeCellFilters = useMemo(
+    () => ({
+      semestre: semestreFilter,
+      materia: materiaFilter,
+      componente: componenteFilter,
+      departamento: departamentoFilter,
+    }),
+    [componenteFilter, departamentoFilter, materiaFilter, semestreFilter],
+  );
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -73,6 +110,29 @@ export function ResultPreviewModal({ result, onClose }: ResultPreviewModalProps)
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [onClose]);
+
+  function clearFilters() {
+    setSemestreFilter("");
+    setMateriaFilter("");
+    setComponenteFilter("");
+    setDepartamentoFilter("");
+  }
+
+  function handleCellFilter(key: FilterableColumnKey, value: string) {
+    if (key === "semestre") {
+      setSemestreFilter((current) => (current === value ? "" : value));
+      return;
+    }
+    if (key === "materia") {
+      setMateriaFilter((current) => (current === value ? "" : value));
+      return;
+    }
+    if (key === "componente") {
+      setComponenteFilter((current) => (current === value ? "" : value));
+      return;
+    }
+    setDepartamentoFilter((current) => (current === value ? "" : value));
+  }
 
   return (
     <div className="preview-modal" role="dialog" aria-modal="true" aria-labelledby="preview-modal-title">
@@ -92,7 +152,14 @@ export function ResultPreviewModal({ result, onClose }: ResultPreviewModalProps)
 
         <div className="preview-modal__body">
           <div className="preview-modal__table">
-            <ResultTable rows={tableRows} title="Tabla ampliada de resultados" />
+            <ResultTable
+              rows={tableRows}
+              title="Tabla ampliada de resultados"
+              activeCellFilters={activeCellFilters}
+              filterableColumns={["semestre", "materia", "componente", "departamento"]}
+              showComponentColumn={hasComponentValues}
+              onCellFilter={handleCellFilter}
+            />
           </div>
 
           <aside className="metrics-panel" aria-label="Métricas de sesiones">
@@ -102,6 +169,17 @@ export function ResultPreviewModal({ result, onClose }: ResultPreviewModalProps)
             </div>
 
             <div className="metrics-filters">
+              <label className="table-filter">
+                <span>Semestre</span>
+                <select value={semestreFilter} onChange={(event) => setSemestreFilter(event.target.value)}>
+                  <option value="">Todos</option>
+                  {semestreOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <label className="table-filter">
                 <span>Materia</span>
                 <select value={materiaFilter} onChange={(event) => setMateriaFilter(event.target.value)}>
@@ -139,6 +217,14 @@ export function ResultPreviewModal({ result, onClose }: ResultPreviewModalProps)
                   ))}
                 </select>
               </label>
+              <button
+                className="clear-filters-button"
+                type="button"
+                disabled={!hasActiveFilters}
+                onClick={clearFilters}
+              >
+                Limpiar filtros
+              </button>
             </div>
 
             <div className="metric-card">
@@ -186,6 +272,30 @@ function buildSemesterMetrics(rows: ReportMetricRow[]): Array<{ semestre: string
 
 function buildMetricKey(semestre: string, materia: string, departamento: string): string {
   return `${semestre}\u001f${materia}\u001f${departamento}`;
+}
+
+function buildSingleComponentMap(rows: ReportMetricRow[]): Map<string, string> {
+  const componentsByKey = new Map<string, Set<string>>();
+  rows.forEach((row) => {
+    if (!row.componente) {
+      return;
+    }
+    const key = buildMetricKey(row.semestre, row.materia, row.departamento);
+    const components = componentsByKey.get(key) || new Set<string>();
+    components.add(row.componente);
+    componentsByKey.set(key, components);
+  });
+
+  const componentByKey = new Map<string, string>();
+  componentsByKey.forEach((components, key) => {
+    if (components.size === 1) {
+      const [component] = components;
+      if (component) {
+        componentByKey.set(key, component);
+      }
+    }
+  });
+  return componentByKey;
 }
 
 function formatNumber(value: number): string {
