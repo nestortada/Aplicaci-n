@@ -11,9 +11,3 @@ services:
     envVars:
       - key: ALLOWED_ORIGINS
         value: https://frontend-certisabana.vercel.app
-      - key: DATABASE_PATH
-        value: /var/data/reportes.sqlite3
-    disk:
-      name: certisabana-data
-      mountPath: /var/data
-      sizeGB: 1
