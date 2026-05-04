@@ -71,6 +71,14 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 function toQuery(params: FilterParams): string {
   const searchParams = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
+    if (Array.isArray(value)) {
+      value.forEach((item) => {
+        if (item) {
+          searchParams.append(key, item);
+        }
+      });
+      return;
+    }
     if (value) {
       searchParams.set(key, value);
     }

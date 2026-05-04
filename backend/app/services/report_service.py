@@ -7,6 +7,7 @@ from app.services.deduplication import deduplicate_combined_sections
 from app.services.filters import (
     apply_optional_filters,
     clean_filter,
+    format_filter_values,
     filter_by_cycle_selection,
     filter_by_professor,
     first_valid_professor_name,
@@ -26,16 +27,18 @@ class ReportService:
         ciclo_lectivo = clean_filter(request.ciclo_lectivo)
         ciclo_lectivo_inicio = clean_filter(request.ciclo_lectivo_inicio)
         ciclo_lectivo_final = clean_filter(request.ciclo_lectivo_final)
-        nombre_curso = clean_filter(request.nombre_curso) or "TODOS"
-        componente = clean_filter(request.componente) or "TODOS"
+        nombre_curso = request.nombre_curso or ["TODOS"]
+        componente = request.componente or ["TODOS"]
+        nombre_curso_label = format_filter_values(nombre_curso)
+        componente_label = format_filter_values(componente)
         received_filters = {
             "numeroDocumentoDocente": document,
             "idProfesor": professor_id,
             "cicloLectivo": ciclo_lectivo,
             "cicloLectivoInicio": ciclo_lectivo_inicio,
             "cicloLectivoFinal": ciclo_lectivo_final,
-            "nombreCurso": nombre_curso,
-            "componente": componente,
+            "nombreCurso": nombre_curso_label,
+            "componente": componente_label,
             "visualizarComponente": request.visualizar_componente,
         }
         database_metadata = self.repository.get_upload_metadata()
@@ -167,8 +170,8 @@ class ReportService:
             cicloLectivo=ciclo_lectivo,
             cicloLectivoInicio=ciclo_lectivo_inicio,
             cicloLectivoFinal=ciclo_lectivo_final,
-            nombreCurso=nombre_curso,
-            componente=componente,
+            nombreCurso=nombre_curso_label,
+            componente=componente_label,
             visualizarComponente=request.visualizar_componente,
         )
         return ReportResponse(

@@ -37,8 +37,8 @@ export interface AppliedFilters {
   cicloLectivo: string;
   cicloLectivoInicio: string;
   cicloLectivoFinal: string;
-  nombreCurso: string;
-  componente: string;
+  nombreCurso: string | string[];
+  componente: string | string[];
   visualizarComponente: boolean;
 }
 
@@ -55,8 +55,8 @@ export interface ReportRequest {
   idProfesor: string;
   cicloLectivoInicio: string;
   cicloLectivoFinal: string;
-  nombreCurso: string;
-  componente: string;
+  nombreCurso: string[];
+  componente: string[];
   visualizarComponente: boolean;
 }
 
@@ -65,7 +65,7 @@ export interface FilterParams {
   idProfesor?: string;
   cicloLectivoInicio?: string;
   cicloLectivoFinal?: string;
-  nombreCurso?: string;
+  nombreCurso?: string | string[];
 }
 
 export interface ApiErrorDetail {

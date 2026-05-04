@@ -48,7 +48,7 @@ def build_component_options(
     id_profesor: str,
     ciclo_lectivo_inicio: str,
     ciclo_lectivo_final: str,
-    nombre_curso: str,
+    nombre_curso: str | list[str],
 ) -> list[dict[str, str]]:
     filtered_rows = _filter_available_rows(
         rows,

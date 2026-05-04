@@ -301,6 +301,103 @@ button:disabled {
   color: var(--muted-light);
 }
 
+.multi-select {
+  position: relative;
+}
+
+.multi-select-trigger {
+  display: flex;
+  width: 100%;
+  min-height: 30px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  color: var(--primary);
+  text-align: left;
+  background: var(--surface-muted);
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  outline: none;
+  cursor: pointer;
+  transition:
+    background-color var(--transition),
+    border-color var(--transition),
+    box-shadow var(--transition);
+}
+
+.multi-select-trigger:focus,
+.multi-select-trigger--open {
+  background: var(--surface);
+  border-color: rgba(2, 132, 199, 0.34);
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+}
+
+.multi-select-trigger > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.multi-select-trigger .material-symbols-outlined {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 18px;
+  transition: transform var(--transition);
+}
+
+.multi-select-trigger--open .material-symbols-outlined {
+  transform: rotate(180deg);
+}
+
+.multi-select-menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  display: grid;
+  gap: 4px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: var(--radius-control);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.16);
+}
+
+.multi-select-option {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 6px;
+  color: #334155;
+  font-size: 12px;
+  line-height: 1.25;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.multi-select-option:hover,
+.multi-select-option--checked {
+  background: var(--surface);
+}
+
+.multi-select-option input {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  accent-color: var(--accent);
+}
+
+.multi-select-option span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .identification-row,
 .upload-row {
   display: flex;

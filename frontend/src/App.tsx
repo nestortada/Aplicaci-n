@@ -34,8 +34,8 @@ export default function App() {
   const [identification, setIdentification] = useState("");
   const [cicloInicio, setCicloInicio] = useState("");
   const [cicloFin, setCicloFin] = useState("");
-  const [materia, setMateria] = useState(ALL_OPTION.valor);
-  const [componente, setComponente] = useState(ALL_OPTION.valor);
+  const [materia, setMateria] = useState<string[]>([ALL_OPTION.valor]);
+  const [componente, setComponente] = useState<string[]>([ALL_OPTION.valor]);
   const [visualizarComponente, setVisualizarComponente] = useState(false);
   const [ciclos, setCiclos] = useState<FilterOption[]>([]);
   const [materias, setMaterias] = useState<FilterOption[]>([ALL_OPTION]);
@@ -53,6 +53,7 @@ export default function App() {
 
   const activeDatabase = Boolean(database?.activa);
   const ciclosInicio = useMemo(() => [EMPTY_CYCLE_OPTION, ...ciclos], [ciclos]);
+  const materiaKey = materia.join("\u001f");
 
   const ciclosFin = useMemo(() => {
     if (!cicloInicio) {
@@ -153,7 +154,7 @@ export default function App() {
   useEffect(() => {
     if (!activeDatabase || !identification.trim()) {
       setMaterias([ALL_OPTION]);
-      setMateria(ALL_OPTION.valor);
+      setMateria([ALL_OPTION.valor]);
       return;
     }
 
@@ -165,7 +166,7 @@ export default function App() {
         }
         const nextOptions = withTodos(response.opciones);
         setMaterias(nextOptions);
-        setMateria((current) => (hasOption(nextOptions, current) ? current : ALL_OPTION.valor));
+        setMateria((current) => keepAvailableSelections(nextOptions, current));
       })
       .catch((error) => {
         if (isCurrent) {
@@ -181,7 +182,7 @@ export default function App() {
   useEffect(() => {
     if (!activeDatabase || !identification.trim()) {
       setComponentes([ALL_OPTION]);
-      setComponente(ALL_OPTION.valor);
+      setComponente([ALL_OPTION.valor]);
       return;
     }
 
@@ -193,7 +194,7 @@ export default function App() {
         }
         const nextOptions = withTodos(response.opciones);
         setComponentes(nextOptions);
-        setComponente((current) => (hasOption(nextOptions, current) ? current : ALL_OPTION.valor));
+        setComponente((current) => keepAvailableSelections(nextOptions, current));
       })
       .catch((error) => {
         if (isCurrent) {
@@ -204,7 +205,7 @@ export default function App() {
     return () => {
       isCurrent = false;
     };
-  }, [activeDatabase, identification, identificationType, cicloInicio, cicloFin, materia]);
+  }, [activeDatabase, identification, identificationType, cicloInicio, cicloFin, materiaKey]);
 
   const handleCopyTable = useCallback(async () => {
     if (!result) {
@@ -326,8 +327,8 @@ export default function App() {
     setIdentification("");
     setCicloInicio("");
     setCicloFin("");
-    setMateria(ALL_OPTION.valor);
-    setComponente(ALL_OPTION.valor);
+    setMateria([ALL_OPTION.valor]);
+    setComponente([ALL_OPTION.valor]);
     setMaterias([ALL_OPTION]);
     setComponentes([ALL_OPTION]);
     setVisualizarComponente(false);
@@ -465,8 +466,13 @@ function withTodos(options: FilterOption[]): FilterOption[] {
   return [ALL_OPTION, ...options.filter((option) => option.valor !== ALL_OPTION.valor)];
 }
 
-function hasOption(options: FilterOption[], value: string): boolean {
-  return options.some((option) => option.valor === value);
+function keepAvailableSelections(options: FilterOption[], values: string[]): string[] {
+  if (values.includes(ALL_OPTION.valor)) {
+    return [ALL_OPTION.valor];
+  }
+  const availableValues = new Set(options.map((option) => option.valor));
+  const nextValues = values.filter((value) => availableValues.has(value));
+  return nextValues.length > 0 ? nextValues : [ALL_OPTION.valor];
 }
 
 function clamp(value: number, min: number, max: number): number {

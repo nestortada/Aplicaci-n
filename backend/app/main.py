@@ -201,7 +201,7 @@ def create_app(repository: Repository | None = None) -> FastAPI:
         id_profesor: Annotated[str, Query(alias="idProfesor")] = "",
         ciclo_lectivo_inicio: Annotated[str, Query(alias="cicloLectivoInicio")] = "",
         ciclo_lectivo_final: Annotated[str, Query(alias="cicloLectivoFinal")] = "",
-        nombre_curso: Annotated[str, Query(alias="nombreCurso")] = "TODOS",
+        nombre_curso: list[str] = Query(default_factory=lambda: ["TODOS"], alias="nombreCurso"),
     ) -> FilterOptionsResponse:
         rows = _safe_rows(repository)
         return FilterOptionsResponse(

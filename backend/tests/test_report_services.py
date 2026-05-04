@@ -92,6 +92,11 @@ class FilterServicesTest(unittest.TestCase):
         self.assertEqual(len(filtered), 1)
         self.assertEqual(filtered[0]["componente"], "LAB")
 
+    def test_optional_filters_accept_multiple_values(self) -> None:
+        filtered = apply_optional_filters(self.rows, ["SEMINARIO DE PRACTICA", "OTRO CURSO"], ["LEC", "LAB"])
+
+        self.assertEqual(len(filtered), 2)
+
 
 class DeduplicationTest(unittest.TestCase):
     def test_deduplicates_combined_sections_and_keeps_first_row(self) -> None:
@@ -240,6 +245,28 @@ class ReportServiceTest(unittest.TestCase):
 
         self.assertEqual(len(response.tabla), 1)
         self.assertEqual(response.tabla[0].materia, "SEMINARIO DE PRACTICA - LAB")
+
+    def test_report_applies_multiple_course_and_component_filters(self) -> None:
+        self.load_rows(
+            [
+                make_row(nombre_curso="CURSO A", componente="LEC"),
+                make_row(source_row=3, nombre_curso="CURSO B", componente="LAB"),
+                make_row(source_row=4, nombre_curso="CURSO C", componente="TEO"),
+            ]
+        )
+
+        response = ReportService(self.repository).build_professor_sessions_report(
+            ReportRequest(
+                numeroDocumentoDocente="52867332",
+                idProfesor="",
+                cicloLectivo="PERIODO 2016-2",
+                nombreCurso=["CURSO A", "CURSO B"],
+                componente=["LEC", "LAB"],
+                visualizarComponente=True,
+            )
+        )
+
+        self.assertEqual([row.materia for row in response.tabla], ["CURSO A - LEC", "CURSO B - LAB"])
 
     def test_report_without_cycle_filter_returns_all_professor_cycles(self) -> None:
         self.load_rows(

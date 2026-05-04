@@ -1,6 +1,7 @@
 import type { FormEvent } from "react";
 import type { DatasetMetadata, FilterOption, IdentificationType } from "../types";
 import { FileUpload } from "./FileUpload";
+import { MultiSelectField } from "./MultiSelectField";
 import { SelectField } from "./SelectField";
 
 interface ControlPanelProps {
@@ -11,8 +12,8 @@ interface ControlPanelProps {
   identification: string;
   cicloInicio: string;
   cicloFin: string;
-  materia: string;
-  componente: string;
+  materia: string[];
+  componente: string[];
   visualizarComponente: boolean;
   ciclosInicio: FilterOption[];
   ciclosFin: FilterOption[];
@@ -26,8 +27,8 @@ interface ControlPanelProps {
   onIdentificationChange: (value: string) => void;
   onCicloInicioChange: (value: string) => void;
   onCicloFinChange: (value: string) => void;
-  onMateriaChange: (value: string) => void;
-  onComponenteChange: (value: string) => void;
+  onMateriaChange: (value: string[]) => void;
+  onComponenteChange: (value: string[]) => void;
   onVisualizarComponenteChange: (value: boolean) => void;
   onSearch: () => void;
   onClearAll: () => void;
@@ -134,12 +135,12 @@ export function ControlPanel({
           </div>
         </div>
 
-        <SelectField label="Materias" value={materia} onChange={(event) => onMateriaChange(event.target.value)} options={materias} />
+        <MultiSelectField label="Materias" value={materia} onChange={onMateriaChange} options={materias} />
 
-        <SelectField
+        <MultiSelectField
           label="Componente"
           value={componente}
-          onChange={(event) => onComponenteChange(event.target.value)}
+          onChange={onComponenteChange}
           options={componentes}
         />
 

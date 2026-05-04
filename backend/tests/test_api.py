@@ -264,6 +264,36 @@ class ApiTest(unittest.TestCase):
             ],
         )
 
+    def test_filter_components_accepts_multiple_courses(self) -> None:
+        self.upload_valid_dataset(
+            [
+                valid_row(**{"Ciclo Lectivo": "PERIODO 2017-1", "Nombre del curso": "CURSO ACTUAL", "Componente": "LAB"}),
+                valid_row(**{"Ciclo Lectivo": "PERIODO 2017-1", "Nombre del curso": "CURSO DISTINTO", "Componente": "TEO"}),
+                valid_row(**{"Ciclo Lectivo": "PERIODO 2017-1", "Nombre del curso": "CURSO FUERA", "Componente": "LEC"}),
+            ]
+        )
+
+        response = self.request(
+            "GET",
+            "/api/filtros/componentes",
+            params=[
+                ("idProfesor", "0000005357"),
+                ("cicloLectivoInicio", "PERIODO 2017-1"),
+                ("cicloLectivoFinal", "PERIODO 2017-1"),
+                ("nombreCurso", "CURSO ACTUAL"),
+                ("nombreCurso", "CURSO DISTINTO"),
+            ],
+        )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(
+            response.json()["opciones"],
+            [
+                {"valor": "LAB", "etiqueta": "LAB"},
+                {"valor": "TEO", "etiqueta": "TEO"},
+            ],
+        )
+
     def test_upload_missing_columns_returns_422(self) -> None:
         content = xlsx_bytes(["Ciclo Lectivo", "Nombre del curso"], [["PERIODO 2016-2", "CURSO"]])
 

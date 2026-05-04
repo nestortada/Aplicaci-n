@@ -140,8 +140,8 @@ describe("Sabana Certificado frontend", () => {
         idProfesor: "0000005357",
         cicloLectivoInicio: "",
         cicloLectivoFinal: "",
-        nombreCurso: "TODOS",
-        componente: "TODOS",
+        nombreCurso: ["TODOS"],
+        componente: ["TODOS"],
         visualizarComponente: false,
       }),
     );
@@ -166,8 +166,48 @@ describe("Sabana Certificado frontend", () => {
         cicloLectivoFinal: "",
       }),
     );
-    expect(await screen.findByRole("option", { name: "BIOQUIMICA" })).toBeInTheDocument();
-    expect(await screen.findByRole("option", { name: "LAB" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /materias/i }));
+    expect(await screen.findByRole("checkbox", { name: "BIOQUIMICA" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /componente/i }));
+    expect(await screen.findByRole("checkbox", { name: "LAB" })).toBeInTheDocument();
+  });
+
+  it("allows selecting several courses and components", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.getCurrentDatabase).mockResolvedValue(activeDatabase);
+    vi.mocked(api.getCiclos).mockResolvedValue({ opciones: cycleOptions });
+    vi.mocked(api.getMaterias).mockResolvedValue({
+      opciones: [
+        { valor: "BIOQUIMICA", etiqueta: "BIOQUIMICA" },
+        { valor: "FISICA", etiqueta: "FISICA" },
+      ],
+    });
+    vi.mocked(api.getComponentes).mockResolvedValue({
+      opciones: [
+        { valor: "LAB", etiqueta: "LAB" },
+        { valor: "LEC", etiqueta: "LEC" },
+      ],
+    });
+
+    render(<App />);
+
+    await user.type(await screen.findByPlaceholderText("Id profesor..."), "0000005357");
+    await user.click(screen.getByRole("button", { name: /materias/i }));
+    await user.click(await screen.findByRole("checkbox", { name: "BIOQUIMICA" }));
+    await user.click(await screen.findByRole("checkbox", { name: "FISICA" }));
+    await user.click(screen.getByRole("button", { name: /componente/i }));
+    await user.click(await screen.findByRole("checkbox", { name: "LAB" }));
+    await user.click(await screen.findByRole("checkbox", { name: "LEC" }));
+    await user.click(screen.getByRole("button", { name: /buscar/i }));
+
+    await waitFor(() =>
+      expect(api.generateReporte).toHaveBeenCalledWith(
+        expect.objectContaining({
+          nombreCurso: ["BIOQUIMICA", "FISICA"],
+          componente: ["LAB", "LEC"],
+        }),
+      ),
+    );
   });
 
   it("bottom Borrar clears parameters without deleting the uploaded database", async () => {
