@@ -21,6 +21,7 @@ from app.config import (
     get_frontend_dist_path,
     get_server_host,
     get_server_port,
+    is_render_environment,
 )
 from app.exceptions import (
     AppError,
@@ -30,16 +31,22 @@ from app.exceptions import (
     unexpected_error_handler,
 )
 from app.models import DatasetMetadata, FilterOptionsResponse, ReportRequest, ReportResponse, UploadResponse
-from app.repository import DatasetRepository
+from app.repository import DatasetRepository, InMemoryDatasetRepository
 from app.services.filter_options import build_component_options, build_course_options, build_cycle_options
 from app.services.file_reader import parse_dataset_file
 from app.services.report_service import ReportService
 from app.services.upload_parser import extract_uploaded_file
 
 
-def create_app(repository: DatasetRepository | None = None) -> FastAPI:
-    repository = repository or DatasetRepository(get_database_path())
-    repository.init_db()
+Repository = DatasetRepository | InMemoryDatasetRepository
+SESSION_HEADER = "x-certisabana-session"
+
+
+def create_app(repository: Repository | None = None) -> FastAPI:
+    use_session_repositories = repository is None and is_render_environment()
+    if not use_session_repositories:
+        repository = repository or DatasetRepository(get_database_path())
+        repository.init_db()
 
     api = FastAPI(
         title="Reporte de Sesiones por Profesor",
@@ -54,7 +61,11 @@ def create_app(repository: DatasetRepository | None = None) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    api.state.repository = repository
+    api.state.use_session_repositories = use_session_repositories
+    if use_session_repositories:
+        api.state.session_repositories = {}
+    else:
+        api.state.repository = repository
     api.add_exception_handler(AppError, app_error_handler)
     api.add_exception_handler(RequestValidationError, request_validation_error_handler)
     api.add_exception_handler(HTTPException, http_exception_handler)
@@ -70,7 +81,7 @@ def create_app(repository: DatasetRepository | None = None) -> FastAPI:
         response_model_by_alias=True,
     )
     async def upload_status(
-        repository: Annotated[DatasetRepository, Depends(get_repository)],
+        repository: Annotated[Repository, Depends(get_repository)],
     ) -> DatasetMetadata:
         return DatasetMetadata(**_safe_upload_metadata(repository))
 
@@ -95,7 +106,7 @@ def create_app(repository: DatasetRepository | None = None) -> FastAPI:
     )
     async def upload_dataset(
         request: Request,
-        repository: Annotated[DatasetRepository, Depends(get_repository)],
+        repository: Annotated[Repository, Depends(get_repository)],
     ) -> UploadResponse:
         uploaded_file = await extract_uploaded_file(request)
         parsed_dataset = parse_dataset_file(uploaded_file.filename, uploaded_file.content)
@@ -129,7 +140,7 @@ def create_app(repository: DatasetRepository | None = None) -> FastAPI:
         response_model_by_alias=True,
     )
     async def delete_dataset(
-        repository: Annotated[DatasetRepository, Depends(get_repository)],
+        repository: Annotated[Repository, Depends(get_repository)],
     ) -> DatasetMetadata:
         try:
             repository.clear()
@@ -151,7 +162,7 @@ def create_app(repository: DatasetRepository | None = None) -> FastAPI:
         response_model_by_alias=True,
     )
     async def cycle_filters(
-        repository: Annotated[DatasetRepository, Depends(get_repository)],
+        repository: Annotated[Repository, Depends(get_repository)],
     ) -> FilterOptionsResponse:
         rows = _safe_rows(repository)
         return FilterOptionsResponse(opciones=build_cycle_options(rows))
@@ -162,7 +173,7 @@ def create_app(repository: DatasetRepository | None = None) -> FastAPI:
         response_model_by_alias=True,
     )
     async def course_filters(
-        repository: Annotated[DatasetRepository, Depends(get_repository)],
+        repository: Annotated[Repository, Depends(get_repository)],
         numero_documento_docente: Annotated[str, Query(alias="numeroDocumentoDocente")] = "",
         id_profesor: Annotated[str, Query(alias="idProfesor")] = "",
         ciclo_lectivo_inicio: Annotated[str, Query(alias="cicloLectivoInicio")] = "",
@@ -185,7 +196,7 @@ def create_app(repository: DatasetRepository | None = None) -> FastAPI:
         response_model_by_alias=True,
     )
     async def component_filters(
-        repository: Annotated[DatasetRepository, Depends(get_repository)],
+        repository: Annotated[Repository, Depends(get_repository)],
         numero_documento_docente: Annotated[str, Query(alias="numeroDocumentoDocente")] = "",
         id_profesor: Annotated[str, Query(alias="idProfesor")] = "",
         ciclo_lectivo_inicio: Annotated[str, Query(alias="cicloLectivoInicio")] = "",
@@ -211,7 +222,7 @@ def create_app(repository: DatasetRepository | None = None) -> FastAPI:
     )
     async def professor_sessions_report(
         request: ReportRequest,
-        repository: Annotated[DatasetRepository, Depends(get_repository)],
+        repository: Annotated[Repository, Depends(get_repository)],
     ) -> ReportResponse:
         try:
             return ReportService(repository).build_professor_sessions_report(request)
@@ -252,11 +263,29 @@ def _mount_frontend(api: FastAPI) -> None:
         return FileResponse(index_path)
 
 
-async def get_repository(request: Request) -> DatasetRepository:
+async def get_repository(request: Request) -> Repository:
+    if getattr(request.app.state, "use_session_repositories", False):
+        session_id = _get_session_id(request)
+        repositories: dict[str, InMemoryDatasetRepository] = request.app.state.session_repositories
+        if session_id not in repositories:
+            repositories[session_id] = InMemoryDatasetRepository()
+        return repositories[session_id]
     return request.app.state.repository
 
 
-def _safe_upload_metadata(repository: DatasetRepository) -> dict[str, object]:
+def _get_session_id(request: Request) -> str:
+    raw_session_id = request.headers.get(SESSION_HEADER, "").strip()
+    if not raw_session_id:
+        raise AppError(
+            400,
+            "sesion_no_disponible",
+            "No fue posible identificar la sesion temporal del navegador.",
+            {"sugerencia": "Recargue la pagina e intente subir la base nuevamente."},
+        )
+    return raw_session_id[:128]
+
+
+def _safe_upload_metadata(repository: Repository) -> dict[str, object]:
     try:
         return repository.get_upload_metadata()
     except sqlite3.Error:
@@ -269,7 +298,7 @@ def _safe_upload_metadata(repository: DatasetRepository) -> dict[str, object]:
         }
 
 
-def _safe_rows(repository: DatasetRepository) -> list[dict[str, object]]:
+def _safe_rows(repository: Repository) -> list[dict[str, object]]:
     try:
         return repository.get_rows()
     except sqlite3.Error as exc:

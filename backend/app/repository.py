@@ -4,6 +4,7 @@ import sqlite3
 from collections.abc import Iterable
 from datetime import UTC, datetime
 from pathlib import Path
+from threading import Lock
 from typing import Any
 
 
@@ -168,3 +169,54 @@ class DatasetRepository:
         columns = {row["name"] for row in connection.execute(f"PRAGMA table_info({table})").fetchall()}
         if column not in columns:
             connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
+
+class InMemoryDatasetRepository:
+    def __init__(self) -> None:
+        self._rows: list[dict[str, Any]] = []
+        self._metadata: dict[str, Any] | None = None
+        self._lock = Lock()
+
+    def init_db(self) -> None:
+        return None
+
+    def replace_rows(self, rows: Iterable[dict[str, Any]], filename: str) -> int:
+        rows_list = [self._normalize_row(row) for row in rows]
+        with self._lock:
+            self._rows = rows_list
+            self._metadata = {
+                "filename": filename,
+                "uploaded_at": datetime.now(UTC).isoformat(),
+                "row_count": len(rows_list),
+            }
+        return len(rows_list)
+
+    def has_active_dataset(self) -> bool:
+        with self._lock:
+            return self._metadata is not None
+
+    def get_upload_metadata(self) -> dict[str, Any]:
+        with self._lock:
+            if not self._metadata:
+                return {"activa": False, "archivo": "", "fechaCarga": "", "filasCargadas": 0}
+            return {
+                "activa": True,
+                "archivo": self._metadata["filename"],
+                "fechaCarga": self._metadata["uploaded_at"],
+                "filasCargadas": self._metadata["row_count"],
+            }
+
+    def get_rows(self) -> list[dict[str, Any]]:
+        with self._lock:
+            return [dict(row) for row in self._rows]
+
+    def clear(self) -> None:
+        with self._lock:
+            self._rows = []
+            self._metadata = None
+
+    def _normalize_row(self, row: dict[str, Any]) -> dict[str, Any]:
+        return {
+            column: int(row.get(column, 0)) if column == "source_row" else str(row.get(column, ""))
+            for column in ROW_COLUMNS
+        }

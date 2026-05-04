@@ -9,6 +9,9 @@ import type {
 
 const defaultApiUrl = window.location.port === "5173" ? "http://127.0.0.1:8000" : window.location.origin;
 const API_URL = (import.meta.env.VITE_API_URL || defaultApiUrl).replace(/\/$/, "");
+const BROWSER_SESSION_ID =
+  crypto.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+const SESSION_HEADER = "X-Certisabana-Session";
 
 export async function uploadDatabase(file: File): Promise<UploadResponse> {
   const formData = new FormData();
@@ -50,7 +53,9 @@ export async function generateReporte(params: ReportRequest): Promise<ReportResp
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, options);
+  const headers = new Headers(options?.headers);
+  headers.set(SESSION_HEADER, BROWSER_SESSION_ID);
+  const response = await fetch(`${API_URL}${path}`, { ...options, headers });
   const contentType = response.headers.get("content-type") || "";
   const payload = contentType.includes("application/json") ? await response.json() : await response.text();
 

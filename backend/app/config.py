@@ -8,7 +8,6 @@ from pathlib import Path
 DEFAULT_ENV_FILE = ".env"
 DEFAULT_DEV_DATABASE_PATH = Path("data/reportes.sqlite3")
 DEFAULT_VERCEL_DATABASE_PATH = Path("/tmp/reportes.sqlite3")
-DEFAULT_RENDER_DATABASE_PATH = Path("/tmp/reportes.sqlite3")
 DEFAULT_ALLOWED_ORIGINS = ",".join(
     [
         "http://localhost:5173",
@@ -33,11 +32,11 @@ def is_render_environment() -> bool:
 
 
 def get_database_path() -> Path:
-    if is_vercel_environment() or is_render_environment():
+    if is_vercel_environment():
         raw_path = os.getenv("DATABASE_PATH")
         if raw_path:
             return Path(raw_path)
-        return DEFAULT_RENDER_DATABASE_PATH if is_render_environment() else DEFAULT_VERCEL_DATABASE_PATH
+        return DEFAULT_VERCEL_DATABASE_PATH
 
     load_key_value_env_file()
     raw_path = os.getenv("DATABASE_PATH")

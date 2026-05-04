@@ -5,6 +5,7 @@ import unittest
 import asyncio
 from io import BytesIO
 from pathlib import Path
+from unittest.mock import patch
 
 import httpx
 from openpyxl import Workbook
@@ -68,6 +69,11 @@ class ApiTest(unittest.TestCase):
         async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
             return await client.request(method, url, **kwargs)
 
+    async def _request_with_app(self, app: object, method: str, url: str, **kwargs: object) -> httpx.Response:
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+            return await client.request(method, url, **kwargs)
+
     def upload_valid_dataset(self, rows: list[list[str]] | None = None) -> None:
         content = xlsx_bytes(valid_headers(), rows or [valid_row()])
         response = self.request(
@@ -121,6 +127,48 @@ class ApiTest(unittest.TestCase):
         self.assertTrue(payload["activa"])
         self.assertEqual(payload["archivo"], "datos.xlsx")
         self.assertEqual(payload["filasCargadas"], 1)
+
+    def test_render_uploads_are_isolated_by_browser_session(self) -> None:
+        with patch.dict("os.environ", {"RENDER": "true"}, clear=True):
+            app = create_app()
+
+        content = xlsx_bytes(valid_headers(), [valid_row()])
+        upload_response = asyncio.run(
+            self._request_with_app(
+                app,
+                "POST",
+                "/api/uploads",
+                headers={"X-Certisabana-Session": "session-a"},
+                files={
+                    "file": (
+                        "datos.xlsx",
+                        content,
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    )
+                },
+            )
+        )
+        self.assertEqual(upload_response.status_code, 200, upload_response.text)
+
+        same_session_response = asyncio.run(
+            self._request_with_app(
+                app,
+                "GET",
+                "/api/uploads/estado",
+                headers={"X-Certisabana-Session": "session-a"},
+            )
+        )
+        self.assertTrue(same_session_response.json()["activa"])
+
+        other_session_response = asyncio.run(
+            self._request_with_app(
+                app,
+                "GET",
+                "/api/uploads/estado",
+                headers={"X-Certisabana-Session": "session-b"},
+            )
+        )
+        self.assertFalse(other_session_response.json()["activa"])
 
     def test_delete_upload_clears_active_dataset(self) -> None:
         self.upload_valid_dataset()
