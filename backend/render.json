@@ -1,0 +1,31 @@
+{
+  "$schema": "https://render.com/schema/render.yaml.json",
+  "services": [
+    {
+      "type": "web",
+      "name": "certisabana-backend",
+      "runtime": "python",
+      "plan": "starter",
+      "rootDir": "backend",
+      "region": "ohio",
+      "buildCommand": "pip install -r requirements.txt",
+      "startCommand": "uvicorn app.main:app --host 0.0.0.0 --port $PORT",
+      "healthCheckPath": "/health",
+      "envVars": [
+        {
+          "key": "ALLOWED_ORIGINS",
+          "value": "https://frontend-certisabana.vercel.app"
+        },
+        {
+          "key": "DATABASE_PATH",
+          "value": "/var/data/reportes.sqlite3"
+        }
+      ],
+      "disk": {
+        "name": "certisabana-data",
+        "mountPath": "/var/data",
+        "sizeGB": 1
+      }
+    }
+  ]
+}
