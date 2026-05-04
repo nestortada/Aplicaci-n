@@ -5,6 +5,7 @@ from email.parser import BytesParser
 from email.policy import default
 
 from fastapi import Request
+from starlette.requests import ClientDisconnect
 
 from app.exceptions import AppError
 
@@ -20,7 +21,15 @@ async def extract_uploaded_file(request: Request) -> UploadedFileData:
     if not content_type.casefold().startswith("multipart/form-data"):
         raise AppError(400, "archivo_no_enviado", "Debe enviar el archivo en formato multipart/form-data.")
 
-    body = await request.body()
+    try:
+        body = await request.body()
+    except ClientDisconnect as exc:
+        raise AppError(
+            499,
+            "cliente_desconectado",
+            "La carga del archivo se interrumpio antes de completarse.",
+            {"sugerencia": "Intente subir el archivo nuevamente sin cerrar o recargar la pagina."},
+        ) from exc
     if not body:
         raise AppError(400, "archivo_no_enviado", "No se envio ningun archivo.")
 

@@ -10,6 +10,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.requests import ClientDisconnect
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -26,6 +27,7 @@ from app.config import (
 from app.exceptions import (
     AppError,
     app_error_handler,
+    client_disconnect_handler,
     http_exception_handler,
     request_validation_error_handler,
     unexpected_error_handler,
@@ -69,6 +71,7 @@ def create_app(repository: Repository | None = None) -> FastAPI:
     api.add_exception_handler(AppError, app_error_handler)
     api.add_exception_handler(RequestValidationError, request_validation_error_handler)
     api.add_exception_handler(HTTPException, http_exception_handler)
+    api.add_exception_handler(ClientDisconnect, client_disconnect_handler)
     api.add_exception_handler(Exception, unexpected_error_handler)
 
     @api.get("/health")

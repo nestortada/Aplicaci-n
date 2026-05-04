@@ -8,6 +8,7 @@ from typing import Any
 from fastapi import HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.requests import ClientDisconnect
 
 
 @dataclass
@@ -41,6 +42,16 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     message = str(exc.detail) if exc.detail else "No fue posible procesar la solicitud."
     code = "ruta_no_encontrada" if status_code == 404 else "solicitud_invalida"
     return _error_response(request, status_code, code, message)
+
+
+async def client_disconnect_handler(request: Request, exc: ClientDisconnect) -> JSONResponse:
+    return _error_response(
+        request,
+        499,
+        "cliente_desconectado",
+        "La conexion se cerro antes de completar la solicitud.",
+        {"sugerencia": "Intente nuevamente sin cerrar o recargar la pagina."},
+    )
 
 
 async def unexpected_error_handler(request: Request, exc: Exception) -> JSONResponse:
