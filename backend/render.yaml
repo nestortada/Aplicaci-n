@@ -11,3 +11,5 @@ services:
     envVars:
       - key: ALLOWED_ORIGINS
         value: https://frontend-certisabana.vercel.app
+      - key: ALLOWED_ORIGIN_REGEX
+        value: https://frontend-certisabana(-[a-z0-9-]+)?\.vercel\.app

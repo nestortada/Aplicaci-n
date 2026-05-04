@@ -16,6 +16,7 @@ DEFAULT_ALLOWED_ORIGINS = ",".join(
         "https://frontend-certisabana.vercel.app",
     ]
 )
+DEFAULT_ALLOWED_ORIGIN_REGEX = r"https://frontend-certisabana(-[a-z0-9-]+)?\.vercel\.app"
 DEFAULT_APP_NAME = "SabanaCertificado"
 
 
@@ -86,6 +87,12 @@ def get_allowed_origins() -> list[str]:
     load_key_value_env_file()
     raw_origins = os.getenv("ALLOWED_ORIGINS", DEFAULT_ALLOWED_ORIGINS)
     return [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
+
+
+def get_allowed_origin_regex() -> str | None:
+    load_key_value_env_file()
+    raw_regex = os.getenv("ALLOWED_ORIGIN_REGEX", DEFAULT_ALLOWED_ORIGIN_REGEX)
+    return raw_regex.strip() or None
 
 
 def load_key_value_env_file() -> None:

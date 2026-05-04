@@ -14,7 +14,14 @@ from fastapi.staticfiles import StaticFiles
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.config import get_allowed_origins, get_database_path, get_frontend_dist_path, get_server_host, get_server_port
+from app.config import (
+    get_allowed_origin_regex,
+    get_allowed_origins,
+    get_database_path,
+    get_frontend_dist_path,
+    get_server_host,
+    get_server_port,
+)
 from app.exceptions import (
     AppError,
     app_error_handler,
@@ -42,6 +49,7 @@ def create_app(repository: DatasetRepository | None = None) -> FastAPI:
     api.add_middleware(
         CORSMiddleware,
         allow_origins=get_allowed_origins(),
+        allow_origin_regex=get_allowed_origin_regex(),
         allow_credentials=False,
         allow_methods=["*"],
         allow_headers=["*"],
