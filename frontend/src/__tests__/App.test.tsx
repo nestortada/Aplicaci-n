@@ -74,7 +74,7 @@ describe("Sabana Certificado frontend", () => {
   it("shows the installer download link in the header", () => {
     render(<App />);
 
-    const downloadLink = screen.getByRole("link", { name: /descargar \.exe/i });
+    const downloadLink = screen.getByRole("link", { name: / descargar aplicación /i });
 
     expect(downloadLink).toHaveAttribute("href", "/downloads/SabanaCertificado.exe");
     expect(downloadLink).toHaveAttribute("download", "SabanaCertificado.exe");
